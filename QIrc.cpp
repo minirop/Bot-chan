@@ -241,10 +241,77 @@ void QIrc::parseCommand( QString s )
 					}
 				}
 			}
-			else // no "!" no the user has no mask
+			else // no "!" no the user has no mask, messages from the server
 			{
-				// this shouldn't happened
-				qDebug() << "no \"!\" in the sender's ident : " + s;
+				bool isInt;
+				int code_msg = argu[1].toInt( &isInt );
+				if( isInt )
+				{
+					switch( code_msg )
+					{
+					case 401:
+						// no such nick
+						break;
+					case 403:
+						// no such channel
+						break;
+					case 404:
+						// cannot send text to channel
+						break;
+					case 405:
+						// no many channels joined
+						break;
+					case 407:
+						// duplicate entries
+						break;
+					case 431:
+						// no nick given
+						break;
+					case 432:
+						// erroneus nickname (invalid character)
+						break;
+					case 433:
+						// nick already in use
+						break;
+					case 436:
+						// nickname collision
+						break;
+					case 442:
+						// you are not on that channel
+						break;
+					case 451:
+						// you have not registered
+						break;
+					case 461:
+						// no enough parameters
+						break;
+					case 464:
+						// password incorrect
+						break;
+					case 471:
+						// cannot join this channel (full)
+						break;
+					case 473:
+						// cannot join this channel (invite only)
+						break;
+					case 474:
+						// cannot join this channel (you've been ban)
+						break;
+					case 475:
+						// cannot join this channel (need password)
+						break;
+					case 481:
+						// you are not an IRC operator
+						break;
+					case 482:
+						// you are not a channel operator
+						break;
+					default:
+						// useless numbers
+						;
+					}
+				}
+				// we don't care about the messages from the server if it's not a "number" message.
 			}
 		}
 		else if( s.section( ' ', 0, 0 ) == "PING" )
@@ -252,7 +319,7 @@ void QIrc::parseCommand( QString s )
 			s[1] = 'O';
 			sendRaw( s );
 			if( !connected )
-			{ // if not already connected (it's the first "ping"), send the password if necessary and join de chans
+			{ // if not already connected (it's the first "ping"), send the password if necessary and join the chans
 				if( !getValue( "bot/password" ).isEmpty() )
 					sendRaw( "PRIVMSG NickServ :IDENTIFY " + getValue( "bot/password" ) );
 				connected = true;
