@@ -241,7 +241,7 @@ void QIrc::parseCommand( QString s )
 					}
 				}
 			}
-			else // no "!" no the user has no mask, messages from the server
+			else // no "!" no the user has no mask, messages from the server/hub
 			{
 				bool isInt;
 				int code_msg = argu[1].toInt( &isInt );
@@ -250,7 +250,7 @@ void QIrc::parseCommand( QString s )
 					switch( code_msg )
 					{
 					case 401:
-						// no such nick
+						// no such nick/channel
 						break;
 					case 403:
 						// no such channel
@@ -263,6 +263,9 @@ void QIrc::parseCommand( QString s )
 						break;
 					case 407:
 						// duplicate entries
+						break;
+					case 421:
+						// unknown command
 						break;
 					case 431:
 						// no nick given
