@@ -65,6 +65,14 @@ void QIrc::print( QString message )
 	qDebug() << message;
 }
 
+void QIrc::unloadScripts()
+{
+	commandes.clear();
+	hook_events.clear();
+	while (!script_engines.isEmpty())
+		delete script_engines.takeFirst();
+}
+
 void QIrc::loadScripts()
 {
 	QDir pluginsDir(qApp->applicationDirPath());
@@ -80,6 +88,7 @@ void QIrc::loadScripts()
 			file.close();
 			
 			QScriptEngine* engine = new QScriptEngine( this );
+			script_engines.append( engine );
 			connect(engine, SIGNAL(signalHandlerException(const QScriptValue &)), this, SLOT(scriptError(const QScriptValue &)));
 			
 			engine->globalObject().setProperty( "irc", engine->newQObject( this ) );
@@ -135,6 +144,7 @@ void QIrc::connecte()
 
 void QIrc::deconnecte()
 {
+	qDebug() << "disconnected";
 }
 
 void QIrc::displayError( QAbstractSocket::SocketError erreur )
@@ -325,11 +335,12 @@ void QIrc::parseCommand( QString s )
 			{ // if not already connected (it's the first "ping"), send the password if necessary and join the chans
 				if( !getValue( "bot/password" ).isEmpty() )
 					sendRaw( "PRIVMSG NickServ :IDENTIFY " + getValue( "bot/password" ) );
+				sendRaw( "MODE " + getValue( "bot/pseudo" ) + " +B" );
 				connected = true;
-				QStringList canaux = getValue( "bot/chans" ).split( ',' );
+				QStringList canaux = getValue( "bot/chans" ).split( ' ' );
 				foreach( QString c, canaux )
 				{
-					sendRaw( "JOIN " + c );
+					sendRaw( "JOIN #" + c );
 				}
 			}
 		}
@@ -380,7 +391,7 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 		{
 			if( cmd[0] != '!' && commandes.contains( cmd ) )
 			{
-				QString destt = QString();
+				QString destt;
 				if( m.size() )
 				{
 					destt = m[0];
@@ -400,6 +411,18 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 																					<< QScriptValue( commandes[ cmd ].first, destt )
 																					<< argu_m
 																					);
+			}
+			else if(isAdmin( sender_data[1] ))
+			{
+				if( cmd == "quit" )
+				{
+					deconnection();
+				}
+				else if( cmd == "reload" )
+				{
+					unloadScripts();
+					loadScripts();
+				}
 			}
 		}
 	}
@@ -422,4 +445,20 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 																				);
 		}
 	}
+}
+
+void QIrc::deconnection( QString message )
+{
+	QString msg_quit;
+	if( message.length() )
+	{
+		msg_quit = message;
+	}
+	else
+	{
+		msg_quit = getValue( "bot/quit_msg" );
+	}
+	
+	sendRaw( "QUIT " + msg_quit );
+	socket->disconnectFromHost();
 }

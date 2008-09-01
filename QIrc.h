@@ -47,6 +47,8 @@ public slots:
 	QStringList getValues( QString name );
 	// return "true" if the user "name" has been identified as an admin
 	bool isAdmin( QString pseudo ) { return admins.contains( pseudo ); };
+	// disconnect the bot
+	void deconnection( QString message = QString() );
 
 private slots:
 	void readData();
@@ -59,6 +61,7 @@ private:
 	void parseCommand( QString s );
 	void dispatchMessage( QStringList sender_data, QString destination, QString command );
 	void loadScripts();
+	void unloadScripts();
 	
 	QTcpSocket *socket;
 	QSettings* conf;
@@ -67,6 +70,7 @@ private:
 	
 	QHash<QString, QPair< QScriptEngine *, QScriptValue > > commandes;
 	QHash<QString, QVector< QPair< QScriptEngine *, QScriptValue > > > hook_events;
+	QList<QScriptEngine *> script_engines;
 	// username that you don't want to parse the command (logically, server's bots)
 	QStringList pseudo_bloques;
 	// logged admin

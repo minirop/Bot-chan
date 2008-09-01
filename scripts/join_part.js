@@ -10,19 +10,9 @@ var func_exec = function( command, sender, dest, argu )
 				this.irc.sendRaw( "JOIN " + argu[i] );
 			}
 		}
-		else if( command == "quit" )
+		else if( command == "!degage" )
 		{
-			var msg_quit = '';
-			if( argu.length )
-			{
-				msg_quit = argu.join( " " );
-			}
-			else
-			{
-				msg_quit = this.irc.getValue( "bot/quit_msg" );
-			}
-			
-			this.irc.sendRaw( "QUIT " + msg_quit );
+			this.irc.deconnection();
 		}
 		else // command = part
 		{
@@ -42,5 +32,5 @@ var func_exec = function( command, sender, dest, argu )
 
 var func_hook = function()
 {
-	return "join,part,quit";
+	return "join,part,!degage";
 }
