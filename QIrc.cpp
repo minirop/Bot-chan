@@ -57,7 +57,7 @@ QStringList QIrc::getValues( QString name )
 
 void QIrc::scriptError( const QScriptValue & exception )
 {
-	qDebug() << "Script error : " + exception.toString();
+	qDebug() << tr( "Script error : %1" ).arg( exception.toString() );
 }
 
 void QIrc::print( QString message )
@@ -85,7 +85,7 @@ void QIrc::loadScripts()
 			engine->globalObject().setProperty( "irc", engine->newQObject( this ) );
 			engine->evaluate( script_content );
 			
-			qDebug() << "loading : " + entries.at(i).fileName();
+			qDebug() << tr( "loading : %1" ).arg( entries.at(i).fileName() );
 			
 			QScriptValue hook = engine->evaluate( "func_hook" );
 			if( hook.isValid() )
@@ -97,7 +97,7 @@ void QIrc::loadScripts()
 					{
 						commandes[ s ].first = engine;
 						commandes[ s ].second = engine->evaluate( "func_exec" );
-						qDebug() << "hook command : " + s;
+						qDebug() << tr( "hook command : %1" ).arg( s );
 					}
 				}
 			}
@@ -111,14 +111,14 @@ void QIrc::loadScripts()
 					foreach( QString s, hooks_event.toString().split( ',' ) )
 					{
 						hook_events[ s ] += qMakePair( engine, engine->evaluate( "func_event" ) );
-						qDebug() << "hook event : " + s;
+						qDebug() << tr( "hook event : %1" ).arg( s );
 					}
 				}
 			}
 		}
 		else
 		{
-			qDebug() << "ERROR : couldn't open : scripts/" + entries.at(i).fileName();
+			qDebug() << tr( "ERROR : couldn't open : scripts/%1" ).arg( entries.at(i).fileName() );
 		}
 	}
 }
@@ -142,16 +142,16 @@ void QIrc::displayError( QAbstractSocket::SocketError erreur )
 	switch( erreur ) // On affiche un message différent selon l'erreur qu'on nous indique
 	{
 		case QAbstractSocket::HostNotFoundError:
-			qDebug() << "ERREUR : le serveur n'a pas pu être trouvé. Vérifiez l'IP et le port.";
+			qDebug() << tr( "ERROR : host not found." );
 			break;
 		case QAbstractSocket::ConnectionRefusedError:
-			qDebug() << "ERREUR : le serveur a refusé la connexion. Vérifiez si le programme \"serveur\" a bien été lancé. Vérifiez aussi l'IP et le port.";
+			qDebug() << tr( "ERROR : connection refused." );
 			break;
 		case QAbstractSocket::RemoteHostClosedError:
-			qDebug() << "ERREUR : le serveur a coupé la connexion.";
+			qDebug() << tr( "ERROR : remote host closed the connection." );
 			break;
 		default:
-			qDebug() << "ERREUR : " + socket->errorString() + "";
+			qDebug() << tr( "ERROR : %1" ).arg( socket->errorString() );
 	}
 }
 
@@ -241,7 +241,7 @@ void QIrc::parseCommand( QString s )
 					}
 				}
 			}
-			else // no "!" no the user has no mask, messages from the server/hub
+			else // no "!" no the user has no mask, messages from the host
 			{
 				bool isInt;
 				int code_msg = argu[1].toInt( &isInt );
@@ -336,7 +336,7 @@ void QIrc::parseCommand( QString s )
 		else // used to know which message hasn't been hook
 		{
 			// this shouldn't happened
-			qDebug() << "unparsed message : " + s;
+			qDebug() << tr( "unparsed message : %1" ).arg( s );
 		}
 	}
 }
@@ -366,22 +366,26 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 	{
 		if( cmd == "VERSION" )
 		{
-			notice( sender_data[0], "VERSION IRC Bot Qt4.4.0" );
+			notice( sender_data[0], QString("VERSION BotChan: IRC Bot Qt%1").arg(QT_VERSION_STR) );
 		}
 		else if( cmd == "admin" )
 		{
 			if( m[0] == getValue( "bot/admin" ) )
 			{
 				admins += sender_data[1];
-				send( sender_data[0], "vous êtes bien identifié" );
+				notice( sender_data[0], tr( "you are now identified" ) );
 			}
 		}
 		else
 		{
 			if( cmd[0] != '!' && commandes.contains( cmd ) )
 			{
-				QString destt = m[0];
-				m.removeFirst();
+				QString destt = QString();
+				if( m.size() )
+				{
+					destt = m[0];
+					m.removeFirst();
+				}
 				
 				QScriptValue sender_data_array = commandes[ cmd ].first->newArray( sender_data.size() );
 				for (int k = 0; k < sender_data.size(); ++k)

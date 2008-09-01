@@ -26,7 +26,16 @@ var func_exec = function( command, sender, dest, argu )
 		}
 		else // command = part
 		{
-			this.irc.sendRaw( "PART " + dest + " " + argu.join(" ") );
+			if( dest != "" )
+			{
+				var part_msg = argu.join(" ");
+				if( part_msg == "" )
+				{
+					part_msg = this.irc.getValue( "bot/quit_msg" );
+				}
+				
+				this.irc.sendRaw( "PART " + dest + " " + part_msg );
+			}
 		}
 	}
 }
