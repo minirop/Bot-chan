@@ -21,6 +21,8 @@ QIrc::QIrc()
 {
 	conf = new QSettings( "config.ini", QSettings::IniFormat, this );
 	connected = false;
+	hasIdentified = false;
+	hasJoinChans = false;
 	
 	pseudo_bloques = getValue( "bot/ignore" ).split( ',' );
 	
@@ -35,10 +37,15 @@ QIrc::QIrc()
 	socket->connectToHost( getValue( "bot/server" ), getValue( "bot/port" ).toInt() );
 }
 
+void QIrc::sync()
+{
+	conf->sync();
+}
+
 void QIrc::addValue( QString name, QString value )
 {
 	conf->setValue( name, value );
-	conf->sync();
+	sync();
 }
 
 QString QIrc::getValue( QString name, QString defaut )
@@ -206,6 +213,13 @@ void QIrc::parseCommand( QString s )
 					
 					dispatchMessage( sender_nick.split( '!' ), destination, argu.join( " " ).mid(1) );
 				}
+				else if( argu[1] == "NOTICE" )
+				{
+					if( argu[0].mid( 1 ).split( '!' ).at(0) == "NickServ" && !hasJoinChans && hasIdentified )
+					{
+						joinChans();
+					}
+				}
 				else // an event has occured (somebody join, leave, ... )
 				{
 					QStringList sender_data = argu[0].mid( 1 ).split( '!' );
@@ -334,14 +348,13 @@ void QIrc::parseCommand( QString s )
 			if( !connected )
 			{ // if not already connected (it's the first "ping"), send the password if necessary and join the chans
 				if( !getValue( "bot/password" ).isEmpty() )
-					sendRaw( "PRIVMSG NickServ :IDENTIFY " + getValue( "bot/password" ) );
-				sendRaw( "MODE " + getValue( "bot/pseudo" ) + " +B" );
-				connected = true;
-				QStringList canaux = getValue( "bot/chans" ).split( ' ' );
-				foreach( QString c, canaux )
 				{
-					sendRaw( "JOIN #" + c );
+					hasIdentified = true;
+					sendRaw( "PRIVMSG NickServ :IDENTIFY " + getValue( "bot/password" ) );
 				}
+				else
+					joinChans();
+				connected = true;
 			}
 		}
 		else // used to know which message hasn't been hook
@@ -350,6 +363,17 @@ void QIrc::parseCommand( QString s )
 			qDebug() << tr( "unparsed message : %1" ).arg( s );
 		}
 	}
+}
+
+void QIrc::joinChans()
+{
+	sendRaw( "MODE " + getValue( "bot/pseudo" ) + " +B" );
+	QStringList canaux = getValue( "bot/chans" ).split( ' ' );
+	foreach( QString c, canaux )
+	{
+		sendRaw( "JOIN #" + c );
+	}
+	hasJoinChans = true;
 }
 
 void QIrc::send( QString dest, QString message )
@@ -416,7 +440,7 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 			{
 				if( cmd == "quit" )
 				{
-					deconnection();
+					deconnection( destination + " " + m.join( " " ) );
 				}
 				else if( cmd == "reload" )
 				{

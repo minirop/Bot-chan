@@ -1,4 +1,4 @@
-BotChan 0.1.0
+BotChan 0.1.5
 Copyright (C) 2008
 Alexander Roper (minirop !at! hotmail !dot! com)
 
@@ -23,3 +23,5 @@ License
 
 It's source code is released under the terms of the GNU 
 General Public License. See COPYING for details.
+
+Exceptions: the scripts (in "/scripts") provided with the bot are released in the public domain.

@@ -45,6 +45,8 @@ public slots:
 	QString getValue( QString name, QString defaut = QString() );
 	// return all the value of a group in the settings file
 	QStringList getValues( QString name );
+	// update the ini file
+	void sync();
 	// return "true" if the user "name" has been identified as an admin
 	bool isAdmin( QString pseudo ) { return admins.contains( pseudo ); };
 	// disconnect the bot
@@ -62,11 +64,14 @@ private:
 	void dispatchMessage( QStringList sender_data, QString destination, QString command );
 	void loadScripts();
 	void unloadScripts();
+	void joinChans();
 	
 	QTcpSocket *socket;
 	QSettings* conf;
 	QString messageRecu;
 	bool connected;
+	bool hasIdentified;
+	bool hasJoinChans;
 	
 	QHash<QString, QPair< QScriptEngine *, QScriptValue > > commandes;
 	QHash<QString, QVector< QPair< QScriptEngine *, QScriptValue > > > hook_events;
