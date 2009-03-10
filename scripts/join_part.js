@@ -2,7 +2,8 @@ var func_exec = function( command, sender, dest, argu )
 {
 	if( this.irc.isAdmin( sender[1] ) )
 	{
-		if( command == "join" )
+		this.irc.sen( sender[0], "debug : " + command );
+		if( command == "join" || command == "!goto" )
 		{
 			this.irc.sendRaw( "JOIN " + dest );
 			for(i = 0;i < argu.length; ++i)
@@ -32,5 +33,5 @@ var func_exec = function( command, sender, dest, argu )
 
 var func_hook = function()
 {
-	return "join,part,!degage";
+	return "!goto,join,part,!degage";
 }

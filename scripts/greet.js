@@ -34,11 +34,21 @@ var func_hook = function()
 
 var func_hook_event = function()
 {
-	return "JOIN";
+	return "JOIN,YOU_JOIN";
 }
 
 var func_event = function( command, sender, dest, argu )
 {
-	if( greetings[ sender[1] ] )
-		this.irc.send( dest, "[" + sender[0] + "] " + greetings[ sender[1] ] );
+	this.irc.print( command + " : " + sender + " : " + dest + " : " + argu ); 
+	if( command == "join" )
+	{
+		if( greetings[ sender[1] ] )
+		{
+			this.irc.send( dest, "[" + sender[0] + "] " + greetings[ sender[1] ] );
+		}
+	}
+	else
+	{
+		this.irc.send( dest, "Ohayo minna" );
+	}
 }

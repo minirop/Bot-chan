@@ -141,17 +141,18 @@ void QIrc::loadScripts()
 
 void QIrc::sendRaw( QString s )
 {
-	socket->write( s.toAscii() + "\r\n" );
+	socket->write( s.toUtf8() + "\r\n" );
 }
 
 void QIrc::connecte()
 {
+	qDebug() << tr("Connection established");
 	sendRaw( "NICK " + getValue( "bot/pseudo" ) + "\r\nUSER " + getValue( "bot/ident" ) + " " + getValue( "bot/ident" ) + " " + socket->peerName() + " :" + getValue( "bot/real_name" ) );
 }
 
 void QIrc::deconnecte()
 {
-	qDebug() << "disconnected";
+	qDebug() << tr("disconnected");
 }
 
 void QIrc::displayError( QAbstractSocket::SocketError erreur )
@@ -190,7 +191,7 @@ void QIrc::readData()
 	
 	foreach( QString s, liste )
 	{
-		parseCommand( s );
+		parseCommand( QString::fromUtf8( qPrintable( s ) ) );
 	}
 }
 
@@ -203,66 +204,85 @@ void QIrc::parseCommand( QString s )
 			QStringList argu = s.split( ' ' );
 			if( argu[0].indexOf( '!' ) > -1 )
 			{
+				if( argu[0][0] == '~' || argu[0][0] == ':' )
+					argu[0] = argu[0].mid( 1 );
+				QStringList sender_data = argu[0].split( '!' );
+				QString destination = argu[2];
+				
+				// check the hooked events before everything else
+				if( !pseudo_bloques.contains( sender_data[1] ) )
+				{
+					QString ev = argu[1];
+					if( argu.size() > 3 )
+					{
+						if( argu[3][0] == '~' || argu[3][0] == ':' )
+							argu[3] = argu[3].mid(1);
+						qDebug() << "argu[3] : " << argu[3];
+					}
+					QString destt = argu[2];
+					QStringList argu2 = argu;
+					argu2.removeFirst();
+					argu2.removeFirst();
+					argu2.removeFirst();
+					if(argu2.size())
+						qDebug() << "argu2[0] : " << argu2[0];
+					
+					if( ev == "PART" || ev == "QUIT" )
+					{
+						// if an admin leave, unregister him.
+						// TODO : don't delete him if it's still connected on an other chan where the bot is.
+						if( admins.contains( sender_data[1] ) )
+						{
+							admins.remove( admins.indexOf( sender_data[1] ) );
+						}
+					}
+					
+					if( sender_data[0] == getValue( "bot/pseudo" ) )
+						ev = "YOU_" + ev; // add "YOU_" when it's a event of the bot
+					if( hook_events.contains( ev ) )
+					{
+						for(int i = 0;i < hook_events[ ev ].size();i++)
+						{
+							QScriptValue sender_data_array = hook_events[ ev ][i].first->newArray( sender_data.size() );
+							for (int k = 0; k < sender_data.size(); ++k)
+								sender_data_array.setProperty( k, QScriptValue( hook_events[ ev ][i].first, sender_data.at(k) ) );
+							
+							QScriptValue argu_m = hook_events[ ev ][i].first->newArray( argu2.size() );
+							for (int k = 0; k < argu2.size(); ++k)
+								argu_m.setProperty( k, QScriptValue( hook_events[ ev ][i].first, argu2.at(k) ) );
+							
+							hook_events[ ev ][i].second.call( QScriptValue(), QScriptValueList()	<< QScriptValue( hook_events[ ev ][i].first, ev )
+																									<< sender_data_array
+																									<< QScriptValue( hook_events[ ev ][i].first, destt )
+																									<< argu_m
+																									);
+						}
+					}
+				}
+				
 				if( argu[1] == "PRIVMSG" ) // a new message arrived
 				{
-					QString sender_nick = argu[0].mid( 1 );
-					QString destination = argu[2];
 					argu.removeFirst();
 					argu.removeFirst();
 					argu.removeFirst();
 					
-					dispatchMessage( sender_nick.split( '!' ), destination, argu.join( " " ).mid(1) );
+					qDebug() << "privmsg : " << argu;
+					
+					dispatchMessage( sender_data, destination, argu.join( " " ) );
 				}
 				else if( argu[1] == "NOTICE" )
 				{
-					if( argu[0].mid( 1 ).split( '!' ).at(0) == "NickServ" && !hasJoinChans && hasIdentified )
+					if( sender_data[0] == "NickServ" && !hasIdentified )
 					{
+						if( !getValue( "bot/password" ).isEmpty() )
+						{
+							hasIdentified = true;
+							sendRaw( "PRIVMSG NickServ :IDENTIFY " + getValue( "bot/password" ) );
+							qDebug() << tr("password identification");
+						}
+					}
+					else if( !hasJoinChans )
 						joinChans();
-					}
-				}
-				else // an event has occured (somebody join, leave, ... )
-				{
-					QStringList sender_data = argu[0].mid( 1 ).split( '!' );
-					QString ev = argu[1];
-					QString destt = argu[2].mid(1);
-					argu.removeFirst();
-					argu.removeFirst();
-					argu.removeFirst();
-					
-					if( !pseudo_bloques.contains( sender_data[1] ) )
-					{
-						if( ev == "PART" || ev == "QUIT" )
-						{
-							// if an admin leave, unregister him.
-							// TODO : don't delete him if it's still connected on an other chan where the bot is.
-							if( admins.contains( sender_data[1] ) )
-							{
-								admins.remove( admins.indexOf( sender_data[1] ) );
-							}
-						}
-						
-						if( sender_data[0] == getValue( "bot/pseudo" ) )
-							ev = "YOU_" + ev; // add "YOU_" when it's a event of the bot
-						if( hook_events.contains( ev ) )
-						{
-							for(int i = 0;i < hook_events[ ev ].size();i++)
-							{
-								QScriptValue sender_data_array = hook_events[ ev ][i].first->newArray( sender_data.size() );
-								for (int k = 0; k < sender_data.size(); ++k)
-									sender_data_array.setProperty( k, QScriptValue( hook_events[ ev ][i].first, sender_data.at(k) ) );
-								
-								QScriptValue argu_m = hook_events[ ev ][i].first->newArray( argu.size() );
-								for (int k = 0; k < argu.size(); ++k)
-									argu_m.setProperty( k, QScriptValue( hook_events[ ev ][i].first, argu.at(k) ) );
-								
-								hook_events[ ev ][i].second.call( QScriptValue(), QScriptValueList()	<< QScriptValue( hook_events[ ev ][i].first, ev )
-																										<< sender_data_array
-																										<< QScriptValue( hook_events[ ev ][i].first, destt )
-																										<< argu_m
-																										);
-							}
-						}
-					}
 				}
 			}
 			else // no "!" no the user has no mask, messages from the host
@@ -274,64 +294,64 @@ void QIrc::parseCommand( QString s )
 					switch( code_msg )
 					{
 					case 401:
-						// no such nick/channel
+						qDebug() << tr("no such nick/channel");
 						break;
 					case 403:
-						// no such channel
+						qDebug() << tr("no such channel");
 						break;
 					case 404:
-						// cannot send text to channel
+						qDebug() << tr("cannot send text to channel");
 						break;
 					case 405:
-						// no many channels joined
+						qDebug() << tr("too many channels joined");
 						break;
 					case 407:
-						// duplicate entries
+						qDebug() << tr("duplicate entries");
 						break;
 					case 421:
-						// unknown command
+						qDebug() << tr("unknown command");
 						break;
 					case 431:
-						// no nick given
+						qDebug() << tr("no nick given");
 						break;
 					case 432:
-						// erroneus nickname (invalid character)
+						qDebug() << tr("erroneus nickname (invalid character)");
 						break;
 					case 433:
-						// nick already in use
+						qDebug() << tr("nick already in use");
 						break;
 					case 436:
-						// nickname collision
+						qDebug() << tr("nickname collision");
 						break;
 					case 442:
-						// you are not on that channel
+						qDebug() << tr("you are not on that channel");
 						break;
 					case 451:
-						// you have not registered
+						qDebug() << tr("you have not registered");
 						break;
 					case 461:
-						// no enough parameters
+						qDebug() << tr("no enough parameters");
 						break;
 					case 464:
-						// password incorrect
+						qDebug() << tr("password incorrect");
 						break;
 					case 471:
-						// cannot join this channel (full)
+						qDebug() << tr("cannot join this channel (full)");
 						break;
 					case 473:
-						// cannot join this channel (invite only)
+						qDebug() << tr("cannot join this channel (invite only)");
 						break;
 					case 474:
-						// cannot join this channel (you've been ban)
+						qDebug() << tr("cannot join this channel (you've been ban)");
 						break;
 					case 475:
-						// cannot join this channel (need password)
+						qDebug() << tr("cannot join this channel (need password)");
 						break;
 					case 481:
-						// you are not an IRC operator
+						qDebug() << tr("you are not an IRC operator");
 						break;
 					case 482:
-						// you are not a channel operator
+						qDebug() << tr("you are not a channel operator");
 						break;
 					default:
 						// useless numbers
@@ -345,19 +365,8 @@ void QIrc::parseCommand( QString s )
 		{
 			s[1] = 'O';
 			sendRaw( s );
-			if( !connected )
-			{ // if not already connected (it's the first "ping"), send the password if necessary and join the chans
-				if( !getValue( "bot/password" ).isEmpty() )
-				{
-					hasIdentified = true;
-					sendRaw( "PRIVMSG NickServ :IDENTIFY " + getValue( "bot/password" ) );
-				}
-				else
-					joinChans();
-				connected = true;
-			}
 		}
-		else // used to know which message hasn't been hook
+		else // used to know which message hasn't been hooked
 		{
 			// this shouldn't happened
 			qDebug() << tr( "unparsed message : %1" ).arg( s );
@@ -396,6 +405,10 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 	QStringList m = command.split( " ", QString::SkipEmptyParts );
 	QString cmd = m[0];
 	m.removeFirst();
+	qDebug() << cmd << " : " << m;
+	
+//	if( cmd[0] == ':' )
+//		cmd = cmd.mid(1);
 	
 	if( destination == getValue( "bot/pseudo" ) )
 	{
@@ -407,8 +420,13 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 		{
 			if( m[0] == getValue( "bot/admin" ) )
 			{
-				admins += sender_data[1];
-				notice( sender_data[0], tr( "you are now identified" ) );
+				if( !admins.contains( sender_data[1] ) )
+				{
+					admins += sender_data[1];
+					notice( sender_data[0], tr( "you are now identified" ) );
+				}
+				else
+					notice( sender_data[0], tr( "you are allready identified" ) );
 			}
 		}
 		else
@@ -436,7 +454,7 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 																					<< argu_m
 																					);
 			}
-			else if(isAdmin( sender_data[1] ))
+			else if( isAdmin( sender_data[1] ) )
 			{
 				if( cmd == "quit" )
 				{
@@ -446,6 +464,7 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 				{
 					unloadScripts();
 					loadScripts();
+					notice( sender_data[0], tr("reloaded") );
 				}
 			}
 		}
