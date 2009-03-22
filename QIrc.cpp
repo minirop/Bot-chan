@@ -217,15 +217,14 @@ void QIrc::parseCommand( QString s )
 					{
 						if( argu[3][0] == '~' || argu[3][0] == ':' )
 							argu[3] = argu[3].mid(1);
-						qDebug() << "argu[3] : " << argu[3];
 					}
+					if( argu[2][0] == ':' )
+						argu[2] = argu[2].mid(1);
 					QString destt = argu[2];
 					QStringList argu2 = argu;
 					argu2.removeFirst();
 					argu2.removeFirst();
 					argu2.removeFirst();
-					if(argu2.size())
-						qDebug() << "argu2[0] : " << argu2[0];
 					
 					if( ev == "PART" || ev == "QUIT" )
 					{
@@ -265,8 +264,6 @@ void QIrc::parseCommand( QString s )
 					argu.removeFirst();
 					argu.removeFirst();
 					argu.removeFirst();
-					
-					qDebug() << "privmsg : " << argu;
 					
 					dispatchMessage( sender_data, destination, argu.join( " " ) );
 				}
@@ -405,7 +402,6 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 	QStringList m = command.split( " ", QString::SkipEmptyParts );
 	QString cmd = m[0];
 	m.removeFirst();
-	qDebug() << cmd << " : " << m;
 	
 //	if( cmd[0] == ':' )
 //		cmd = cmd.mid(1);
