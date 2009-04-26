@@ -15,14 +15,26 @@
   * along with this program.  If not, see <http://www.gnu.org/licenses/>.
   */
 #include "QIrc.h"
+#include "Dcc.h"
 #include <QtDebug>
+
+QString int_to_ip(unsigned int i)
+{
+	int a, b, c, d;
+	a = i >> 24;
+	i -= (a << 24);
+	b = i >> 16;
+	i -= (b << 16);
+	c = i >> 8;
+	i -= (c << 8);
+	d = i;
+	return QString("%1.%2.%3.%4").arg(a).arg(b).arg(c).arg(d);
+}
 
 QIrc::QIrc()
 {
 	conf = new QSettings( "config.ini", QSettings::IniFormat, this );
 	connected = false;
-	hasIdentified = false;
-	hasJoinChans = false;
 	
 	pseudo_bloques = getValue( "bot/ignore" ).split( ',' );
 	
@@ -148,6 +160,14 @@ void QIrc::connecte()
 {
 	qDebug() << tr("Connection established");
 	sendRaw( "NICK " + getValue( "bot/pseudo" ) + "\r\nUSER " + getValue( "bot/ident" ) + " " + getValue( "bot/ident" ) + " " + socket->peerName() + " :" + getValue( "bot/real_name" ) );
+	
+	if( !getValue( "bot/password" ).isEmpty() )
+	{
+		sendRaw( "PRIVMSG NickServ :IDENTIFY " + getValue( "bot/password" ) );
+		qDebug() << tr("password identification");
+	}
+	
+	sendRaw( "MODE " + getValue( "bot/pseudo" ) + " +B" );
 }
 
 void QIrc::deconnecte()
@@ -269,17 +289,14 @@ void QIrc::parseCommand( QString s )
 				}
 				else if( argu[1] == "NOTICE" )
 				{
-					if( sender_data[0] == "NickServ" && !hasIdentified )
+					if( argu[0].left( 8 ) == "HostServ" )
 					{
-						if( !getValue( "bot/password" ).isEmpty() )
+						QStringList canaux = getValue( "bot/chans" ).split( ' ' );
+						foreach( QString c, canaux )
 						{
-							hasIdentified = true;
-							sendRaw( "PRIVMSG NickServ :IDENTIFY " + getValue( "bot/password" ) );
-							qDebug() << tr("password identification");
+							sendRaw( "JOIN #" + c );
 						}
 					}
-					else if( !hasJoinChans )
-						joinChans();
 				}
 			}
 			else // no "!" no the user has no mask, messages from the host
@@ -371,17 +388,6 @@ void QIrc::parseCommand( QString s )
 	}
 }
 
-void QIrc::joinChans()
-{
-	sendRaw( "MODE " + getValue( "bot/pseudo" ) + " +B" );
-	QStringList canaux = getValue( "bot/chans" ).split( ' ' );
-	foreach( QString c, canaux )
-	{
-		sendRaw( "JOIN #" + c );
-	}
-	hasJoinChans = true;
-}
-
 void QIrc::send( QString dest, QString message )
 {
 	sendRaw( "PRIVMSG " + dest + " :" + message );
@@ -412,6 +418,15 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 		{
 			notice( sender_data[0], QString("VERSION BotChan: IRC Bot Qt%1").arg(QT_VERSION_STR) );
 		}
+		else if( cmd == "DCC" )
+		{
+			if( m[0] == "SEND" )
+			{
+				Dcc * file_dcc = new Dcc(int_to_ip(m[2].toUInt()), m[3].toUShort(), m[1], m[4].remove( '' ).toUInt());
+				connect( file_dcc, SIGNAL( onError( QAbstractSocket::SocketError ) ), this, SLOT( dcc_displayError( QAbstractSocket::SocketError ) ) );
+				connect( file_dcc, SIGNAL( onFinished( int, float ) ), this, SLOT( dcc_transfertFinished( int, float ) ) );
+			}
+		}
 		else if( cmd == "admin" )
 		{
 			if( m[0] == getValue( "bot/admin" ) )
@@ -423,6 +438,11 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 				}
 				else
 					notice( sender_data[0], tr( "you are allready identified" ) );
+			}
+			else
+			{
+				notice( sender_data[0], tr( "wrong password" ) );
+				print( tr("%1 try the password : %2").arg(sender_data[0]).arg(m[0]) );
 			}
 		}
 		else
@@ -500,4 +520,103 @@ void QIrc::deconnection( QString message )
 	
 	sendRaw( "QUIT " + msg_quit );
 	socket->disconnectFromHost();
+}
+
+void QIrc::dcc_transfertFinished( int temps, float vitesse )
+{
+	Dcc * dcc_p = qobject_cast< Dcc * >( sender() );
+	dcc_p->deleteLater();
+	qDebug() << "transfert completed in " << ((float)temps/1000) << "sec. (" << vitesse << "ko/s)";
+}
+
+void QIrc::dcc_displayError( QAbstractSocket::SocketError erreur )
+{
+	switch( erreur )
+	{
+		case QAbstractSocket::HostNotFoundError:
+			qDebug() << tr( "ERROR DCC : host not found." );
+			break;
+		case QAbstractSocket::ConnectionRefusedError:
+			qDebug() << tr( "ERROR DCC : connection refused." );
+			break;
+		case QAbstractSocket::RemoteHostClosedError:
+			qDebug() << tr( "ERROR DCC : remote host closed the connection." );
+			break;
+		default:
+			qDebug() << tr( "ERROR DCC : %1" ).arg( socket->errorString() );
+	}
+}
+
+void QIrc::xdcc_sendFile( QString dest, QString filename )
+{/*
+	print("xdcc send file");
+	xdcc_server = new QTcpServer;
+	xdcc_server->listen(QHostAddress::Any, 5990);
+	connect(xdcc_server, SIGNAL(newConnection()), this, SLOT(xdcc_onConnexion()));
+	send( "Fannsis", "DCC SEND \"favicon.ico\" 1305011269 5990 246" );*/
+}
+
+void QIrc::xdcc_onConnexion()
+{/*
+	print("on xdcc connexion");
+	QTcpSocket * socket_xdcc = xdcc_server->nextPendingConnection();
+	connect( socket_xdcc, SIGNAL(readyRead()), this, SLOT(xdcc_readData()) );
+	connect( socket_xdcc, SIGNAL(connected()), this, SLOT(xdcc_connecte()) );
+	connect( socket_xdcc, SIGNAL(disconnected()), this, SLOT(xdcc_deconnecte()) );
+	connect( socket_xdcc, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(xdcc_displayError(QAbstractSocket::SocketError)) );*/
+}
+
+void QIrc::xdcc_readData()
+{
+//	QTcpSocket * sock_sender = qobject_cast< QTcpSocket * >( sender() );
+//	qDebug() << "xdcc reading : " << sock_sender->readAll();
+}
+
+void QIrc::xdcc_connecte()
+{
+/*	print("on xdcc connected");
+	QTcpSocket * sock_sender = qobject_cast< QTcpSocket * >( sender() );
+	if( fichiers_xdcc.contains( sock_sender ) )
+	{
+		QFile f("C:\\wamp\\www\\peyj\\favicon.ico");
+		f.open(QIODevice::ReadOnly);
+		sock_sender->write( f.readAll() );
+		print( tr( "transfert beginning" ) );
+	}
+	else
+		print( tr( "no such socket : connection" ) );*/
+}
+
+void QIrc::xdcc_deconnecte()
+{/*
+	QTcpSocket * sock_sender = qobject_cast< QTcpSocket * >( sender() );
+	if( fichiers_xdcc.contains( sock_sender ) )
+	{
+		fichiers_xdcc[sock_sender]->close();
+		fichiers_xdcc.remove( sock_sender );
+		sock_sender->deleteLater();
+		xdcc_server->close();
+		xdcc_server->deleteLater();
+		print( tr( "transfert terminated" ) );
+	}
+	else
+		print( tr( "no such socket : disconnection" ) );*/
+}
+
+void QIrc::xdcc_displayError( QAbstractSocket::SocketError erreur )
+{/*
+	switch( erreur ) // On affiche un message différent selon l'erreur qu'on nous indique
+	{
+		case QAbstractSocket::HostNotFoundError:
+			qDebug() << tr( "ERROR XDCC : host not found." );
+			break;
+		case QAbstractSocket::ConnectionRefusedError:
+			qDebug() << tr( "ERROR XDCC : connection refused." );
+			break;
+		case QAbstractSocket::RemoteHostClosedError:
+			qDebug() << tr( "ERROR XDCC : remote host closed the connection." );
+			break;
+		default:
+			qDebug() << tr( "ERROR XDCC : %1" ).arg( socket->errorString() );
+	}*/
 }

@@ -51,35 +51,48 @@ public slots:
 	bool isAdmin( QString pseudo ) { return admins.contains( pseudo ); };
 	// disconnect the bot
 	void deconnection( QString message = QString() );
+	// send the file "filename" to "dest"
+	void xdcc_sendFile( QString dest, QString filename );
 
 private slots:
-	void readData();
-	void displayError( QAbstractSocket::SocketError erreur );
 	void scriptError( const QScriptValue & exception );
+	// main socket
+	void readData();
 	void connecte();
 	void deconnecte();
+	void displayError( QAbstractSocket::SocketError erreur );
+	// for incoming dcc
+	void dcc_displayError( QAbstractSocket::SocketError erreur );
+	void dcc_transfertFinished( int temps, float vitesse );
+	// for the socket from outcoming dcc
+	void xdcc_readData();
+	void xdcc_connecte();
+	void xdcc_deconnecte();
+	void xdcc_displayError( QAbstractSocket::SocketError erreur );
+	void xdcc_onConnexion();
 
 private:
 	void parseCommand( QString s );
 	void dispatchMessage( QStringList sender_data, QString destination, QString command );
 	void loadScripts();
 	void unloadScripts();
-	void joinChans();
 	
 	QTcpSocket *socket;
 	QSettings* conf;
 	QString messageRecu;
 	bool connected;
-	bool hasIdentified;
-	bool hasJoinChans;
 	
-	QHash<QString, QPair< QScriptEngine *, QScriptValue > > commandes;
-	QHash<QString, QVector< QPair< QScriptEngine *, QScriptValue > > > hook_events;
-	QList<QScriptEngine *> script_engines;
-	// username that you don't want to parse the command (logically, server's bots)
+	QHash< QString, QPair< QScriptEngine *, QScriptValue > > commandes;
+	QHash< QString, QVector< QPair< QScriptEngine *, QScriptValue > > > hook_events;
+	QList< QScriptEngine * > script_engines;
+	// username that you don't want to parse the command (logically, server's bots : NickServ and so)
 	QStringList pseudo_bloques;
 	// logged admin
-	QVector<QString> admins;
+	QVector< QString > admins;
+	// dcc files sockets (outcome)
+	QHash< QTcpSocket *, QString > fichiers_xdcc;
+	// the xdcc server
+	QTcpServer * xdcc_server;
 };
 
 #endif
