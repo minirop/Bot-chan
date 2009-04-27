@@ -46,7 +46,7 @@ QIrc::QIrc()
 	connect( socket, SIGNAL(disconnected()), this, SLOT(deconnecte()) );
 	connect( socket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(displayError(QAbstractSocket::SocketError)) );
 	
-	socket->connectToHost( getValue( "bot/server" ), getValue( "bot/port" ).toInt() );
+	socket->connectToHost( getValue( "bot/server" ), getValue( "bot/port" ).toUShort() );
 }
 
 void QIrc::sync()
@@ -76,7 +76,7 @@ QStringList QIrc::getValues( QString name )
 
 void QIrc::scriptError( const QScriptValue & exception )
 {
-	qDebug() << tr( "Script error : %1" ).arg( exception.toString() );
+	print( tr( "Script error : %1" ).arg( exception.toString() ) );
 }
 
 void QIrc::print( QString message )
@@ -113,7 +113,7 @@ void QIrc::loadScripts()
 			engine->globalObject().setProperty( "irc", engine->newQObject( this ) );
 			engine->evaluate( script_content );
 			
-			qDebug() << tr( "loading : %1" ).arg( entries.at(i).fileName() );
+			print( tr( "loading : %1" ).arg( entries.at(i).fileName() ) );
 			
 			QScriptValue hook = engine->evaluate( "func_hook" );
 			if( hook.isValid() )
@@ -125,7 +125,7 @@ void QIrc::loadScripts()
 					{
 						commandes[ s ].first = engine;
 						commandes[ s ].second = engine->evaluate( "func_exec" );
-						qDebug() << tr( "hook command : %1" ).arg( s );
+						print( tr( "hook command : %1" ).arg( s ) );
 					}
 				}
 			}
@@ -139,14 +139,14 @@ void QIrc::loadScripts()
 					foreach( QString s, hooks_event.toString().split( ',' ) )
 					{
 						hook_events[ s ] += qMakePair( engine, engine->evaluate( "func_event" ) );
-						qDebug() << tr( "hook event : %1" ).arg( s );
+						print( tr( "hook event : %1" ).arg( s ) );
 					}
 				}
 			}
 		}
 		else
 		{
-			qDebug() << tr( "ERROR : couldn't open : scripts/%1" ).arg( entries.at(i).fileName() );
+			print( tr( "ERROR : couldn't open : scripts/%1" ).arg( entries.at( i ).fileName() ) );
 		}
 	}
 }
@@ -158,13 +158,13 @@ void QIrc::sendRaw( QString s )
 
 void QIrc::connecte()
 {
-	qDebug() << tr("Connection established");
+	print( tr( "Connection established" ) );
 	sendRaw( "NICK " + getValue( "bot/pseudo" ) + "\r\nUSER " + getValue( "bot/ident" ) + " " + getValue( "bot/ident" ) + " " + socket->peerName() + " :" + getValue( "bot/real_name" ) );
 	
 	if( !getValue( "bot/password" ).isEmpty() )
 	{
 		sendRaw( "PRIVMSG NickServ :IDENTIFY " + getValue( "bot/password" ) );
-		qDebug() << tr("password identification");
+		print( tr("password identification") );
 	}
 	
 	sendRaw( "MODE " + getValue( "bot/pseudo" ) + " +B" );
@@ -172,7 +172,7 @@ void QIrc::connecte()
 
 void QIrc::deconnecte()
 {
-	qDebug() << tr("disconnected");
+	print( tr( "disconnected" ) );
 }
 
 void QIrc::displayError( QAbstractSocket::SocketError erreur )
@@ -180,16 +180,16 @@ void QIrc::displayError( QAbstractSocket::SocketError erreur )
 	switch( erreur ) // On affiche un message différent selon l'erreur qu'on nous indique
 	{
 		case QAbstractSocket::HostNotFoundError:
-			qDebug() << tr( "ERROR : host not found." );
+			print( tr( "ERROR : host not found." ) );
 			break;
 		case QAbstractSocket::ConnectionRefusedError:
-			qDebug() << tr( "ERROR : connection refused." );
+			print( tr( "ERROR : connection refused." ) );
 			break;
 		case QAbstractSocket::RemoteHostClosedError:
-			qDebug() << tr( "ERROR : remote host closed the connection." );
+			print( tr( "ERROR : remote host closed the connection." ) );
 			break;
 		default:
-			qDebug() << tr( "ERROR : %1" ).arg( socket->errorString() );
+			print( tr( "ERROR : %1" ).arg( socket->errorString() ) );
 	}
 }
 
@@ -308,64 +308,64 @@ void QIrc::parseCommand( QString s )
 					switch( code_msg )
 					{
 					case 401:
-						qDebug() << tr("no such nick/channel");
+						print( tr("no such nick/channel") );
 						break;
 					case 403:
-						qDebug() << tr("no such channel");
+						print( tr("no such channel") );
 						break;
 					case 404:
-						qDebug() << tr("cannot send text to channel");
+						print( tr("cannot send text to channel") );
 						break;
 					case 405:
-						qDebug() << tr("too many channels joined");
+						print( tr("too many channels joined") );
 						break;
 					case 407:
-						qDebug() << tr("duplicate entries");
+						print( tr("duplicate entries") );
 						break;
 					case 421:
-						qDebug() << tr("unknown command");
+						print( tr("unknown command") );
 						break;
 					case 431:
-						qDebug() << tr("no nick given");
+						print( tr("no nick given") );
 						break;
 					case 432:
-						qDebug() << tr("erroneus nickname (invalid character)");
+						print( tr("erroneus nickname (invalid character)") );
 						break;
 					case 433:
-						qDebug() << tr("nick already in use");
+						print( tr("nick already in use") );
 						break;
 					case 436:
-						qDebug() << tr("nickname collision");
+						print( tr("nickname collision") );
 						break;
 					case 442:
-						qDebug() << tr("you are not on that channel");
+						print( tr("you are not on that channel") );
 						break;
 					case 451:
-						qDebug() << tr("you have not registered");
+						print( tr("you have not registered") );
 						break;
 					case 461:
-						qDebug() << tr("no enough parameters");
+						print( tr("no enough parameters") );
 						break;
 					case 464:
-						qDebug() << tr("password incorrect");
+						print( tr("password incorrect") );
 						break;
 					case 471:
-						qDebug() << tr("cannot join this channel (full)");
+						print( tr("cannot join this channel (full)") );
 						break;
 					case 473:
-						qDebug() << tr("cannot join this channel (invite only)");
+						print( tr("cannot join this channel (invite only)") );
 						break;
 					case 474:
-						qDebug() << tr("cannot join this channel (you've been ban)");
+						print( tr("cannot join this channel (you've been ban)") );
 						break;
 					case 475:
-						qDebug() << tr("cannot join this channel (need password)");
+						print( tr("cannot join this channel (need password)") );
 						break;
 					case 481:
-						qDebug() << tr("you are not an IRC operator");
+						print( tr("you are not an IRC operator") );
 						break;
 					case 482:
-						qDebug() << tr("you are not a channel operator");
+						print( tr("you are not a channel operator") );
 						break;
 					default:
 						// useless numbers
@@ -383,7 +383,7 @@ void QIrc::parseCommand( QString s )
 		else // used to know which message hasn't been hooked
 		{
 			// this shouldn't happened
-			qDebug() << tr( "unparsed message : %1" ).arg( s );
+			print( tr( "unparsed message : %1" ).arg( s ) );
 		}
 	}
 }
@@ -422,9 +422,10 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 		{
 			if( m[0] == "SEND" )
 			{
-				Dcc * file_dcc = new Dcc(int_to_ip(m[2].toUInt()), m[3].toUShort(), m[1], m[4].remove( '' ).toUInt());
+				Dcc * file_dcc = new Dcc( int_to_ip(m[2].toUInt() ), m[3].toUShort(), getValue( "dcc/directory" )+"/"+m[1], m[4].remove( '' ).toUInt() );
 				connect( file_dcc, SIGNAL( onError( QAbstractSocket::SocketError ) ), this, SLOT( dcc_displayError( QAbstractSocket::SocketError ) ) );
 				connect( file_dcc, SIGNAL( onFinished( int, float ) ), this, SLOT( dcc_transfertFinished( int, float ) ) );
+				print( QString( "beginning the DL of %1" ).arg(m[1]) );
 			}
 		}
 		else if( cmd == "admin" )
@@ -435,6 +436,7 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 				{
 					admins += sender_data[1];
 					notice( sender_data[0], tr( "you are now identified" ) );
+					print( QString( "%1 successfully identified himself as an admin" ).arg(sender_data[0]) );
 				}
 				else
 					notice( sender_data[0], tr( "you are allready identified" ) );
@@ -519,6 +521,7 @@ void QIrc::deconnection( QString message )
 	}
 	
 	sendRaw( "QUIT " + msg_quit );
+	socket->flush();
 	socket->disconnectFromHost();
 }
 
@@ -526,7 +529,7 @@ void QIrc::dcc_transfertFinished( int temps, float vitesse )
 {
 	Dcc * dcc_p = qobject_cast< Dcc * >( sender() );
 	dcc_p->deleteLater();
-	qDebug() << "transfert completed in " << ((float)temps/1000) << "sec. (" << vitesse << "ko/s)";
+	print( QString( "transfert completed in %1sec. (%2ko/s)" ).arg((float)temps/1000).arg(vitesse) );
 }
 
 void QIrc::dcc_displayError( QAbstractSocket::SocketError erreur )
@@ -534,16 +537,16 @@ void QIrc::dcc_displayError( QAbstractSocket::SocketError erreur )
 	switch( erreur )
 	{
 		case QAbstractSocket::HostNotFoundError:
-			qDebug() << tr( "ERROR DCC : host not found." );
+			print( tr( "ERROR DCC : host not found." ) );
 			break;
 		case QAbstractSocket::ConnectionRefusedError:
-			qDebug() << tr( "ERROR DCC : connection refused." );
+			print( tr( "ERROR DCC : connection refused." ) );
 			break;
 		case QAbstractSocket::RemoteHostClosedError:
-			qDebug() << tr( "ERROR DCC : remote host closed the connection." );
+			print( tr( "ERROR DCC : remote host closed the connection." ) );
 			break;
 		default:
-			qDebug() << tr( "ERROR DCC : %1" ).arg( socket->errorString() );
+			print( tr( "ERROR DCC : %1" ).arg( socket->errorString() ) );
 	}
 }
 
@@ -569,7 +572,7 @@ void QIrc::xdcc_onConnexion()
 void QIrc::xdcc_readData()
 {
 //	QTcpSocket * sock_sender = qobject_cast< QTcpSocket * >( sender() );
-//	qDebug() << "xdcc reading : " << sock_sender->readAll();
+//	print( "xdcc reading : " << sock_sender->readAll() );
 }
 
 void QIrc::xdcc_connecte()
@@ -581,7 +584,7 @@ void QIrc::xdcc_connecte()
 		QFile f("C:\\wamp\\www\\peyj\\favicon.ico");
 		f.open(QIODevice::ReadOnly);
 		sock_sender->write( f.readAll() );
-		print( tr( "transfert beginning" ) );
+		print( tr( "transfert beginning" ) ) );
 	}
 	else
 		print( tr( "no such socket : connection" ) );*/
@@ -608,15 +611,15 @@ void QIrc::xdcc_displayError( QAbstractSocket::SocketError erreur )
 	switch( erreur ) // On affiche un message différent selon l'erreur qu'on nous indique
 	{
 		case QAbstractSocket::HostNotFoundError:
-			qDebug() << tr( "ERROR XDCC : host not found." );
+			print( tr( "ERROR XDCC : host not found." ) );
 			break;
 		case QAbstractSocket::ConnectionRefusedError:
-			qDebug() << tr( "ERROR XDCC : connection refused." );
+			print( tr( "ERROR XDCC : connection refused." ) );
 			break;
 		case QAbstractSocket::RemoteHostClosedError:
-			qDebug() << tr( "ERROR XDCC : remote host closed the connection." );
+			print( tr( "ERROR XDCC : remote host closed the connection." ) );
 			break;
 		default:
-			qDebug() << tr( "ERROR XDCC : %1" ).arg( socket->errorString() );
+			print( tr( "ERROR XDCC : %1" ).arg( socket->errorString() ) );
 	}*/
 }
