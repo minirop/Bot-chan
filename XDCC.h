@@ -14,37 +14,44 @@
   * You should have received a copy of the GNU General Public License
   * along with this program.  If not, see <http://www.gnu.org/licenses/>.
   */
-#ifndef __DCC_H__
-#define __DCC_H__
+#ifndef __XDCC_H__
+#define __XDCC_H__
 
 #include <QObject>
 #include <QString>
 #include <QTcpSocket>
-#include <QFile>
+#include <QTcpServer>
+#include <QFileInfo>
 #include <QTime>
 
-class Dcc : public QObject
+class QIrc;
+
+class XDCC : public QObject
 {
 Q_OBJECT
 
 public:
-	Dcc( QString host, unsigned int port, QString filename, unsigned int size );
+	XDCC( QIrc * bot, QString dest, QString filename );
 
 signals:
 	void onError( QAbstractSocket::SocketError erreur );
 	void onFinished( int temps, float vitesse );
 
 private slots:
-	void readData();
+	void onConnexion();
 	void connecte();
 	void deconnecte();
+	void displayError( QAbstractSocket::SocketError erreur );
+	void onDeletion( QObject * obj );
+	void onTimerTimeout();
 
 private:
-	QFile * fichier;
-	QTcpSocket * socket;
-	unsigned int fileSize;
-	unsigned int receivedBytes;
+	QFileInfo fichier;
+	unsigned int size;
 	QTime beginTime;
+	QTcpServer * server;
+	QTcpSocket * socket;
+	QIrc * parent_irc;
 };
 
 #endif

@@ -16,6 +16,8 @@
   */
 #include "QIrc.h"
 #include "Dcc.h"
+#include "XDCC.h"
+
 #include <QtDebug>
 
 QString int_to_ip(unsigned int i)
@@ -37,17 +39,117 @@ QIrc::QIrc()
 	connected = false;
 	
 	pseudo_bloques = getValue( "bot/ignore" ).split( ',' );
+	admins = getValue( "admin/hosts" ).remove( ' ' ).split( ',' ).toVector();
 	
 	loadScripts();
 	
+#ifndef QT_NO_OPENSSL
+	socket = new QSslSocket( this );
+	socket->setPeerVerifyMode( QSslSocket::VerifyNone );
+	connect( socket, SIGNAL( encrypted() ), this, SLOT( socketEncrypted() ) );
+	connect( socket, SIGNAL( sslErrors ( const QList<QSslError> & ) ), this, SLOT( onSslErrors( const QList<QSslError> & ) ) );
+#else
 	socket = new QTcpSocket( this );
-	connect( socket, SIGNAL(readyRead()), this, SLOT(readData()) );
-	connect( socket, SIGNAL(connected()), this, SLOT(connecte()) );
-	connect( socket, SIGNAL(disconnected()), this, SLOT(deconnecte()) );
-	connect( socket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(displayError(QAbstractSocket::SocketError)) );
+#endif
+	connect( socket, SIGNAL( readyRead() ), this, SLOT( readData() ) );
+	connect( socket, SIGNAL( connected() ), this, SLOT( connecte() ) );
+	connect( socket, SIGNAL( disconnected() ), this, SLOT(deconnecte() ) );
+	connect( socket, SIGNAL( error( QAbstractSocket::SocketError ) ), this, SLOT( displayError( QAbstractSocket::SocketError ) ) );
 	
-	socket->connectToHost( getValue( "bot/server" ), getValue( "bot/port" ).toUShort() );
+#ifndef QT_NO_OPENSSL
+	if( getValue( "bot/ssl" ).toInt() )
+		socket->connectToHostEncrypted( getValue( "bot/server" ), getValue( "bot/port_ssl" ).toUShort() );
+	else
+#endif
+		socket->connectToHost( getValue( "bot/server" ), getValue( "bot/port" ).toUShort() );
 }
+
+#ifndef QT_NO_OPENSSL
+void QIrc::onSslErrors( const QList<QSslError> & erreurs )
+{
+	foreach(QSslError e, erreurs)
+	{
+		switch(e.error())
+		{
+			case QSslError::UnableToGetIssuerCertificate:
+				print( tr( "SSL : Unable to get issuer certificate" ) );
+				break;
+			case QSslError::UnableToDecryptCertificateSignature:
+				print( tr( "SSL : Unable to decrypt certificate signature" ) );
+				break;
+			case QSslError::UnableToDecodeIssuerPublicKey:
+				print( tr( "SSL : Unable to decode issuer public key" ) );
+				break;
+			case QSslError::CertificateSignatureFailed:
+				print( tr( "SSL : Certificate signature failed" ) );
+				break;
+			case QSslError::CertificateNotYetValid:
+				print( tr( "SSL : Certificate not yet valid" ) );
+				break;
+			case QSslError::CertificateExpired:
+				print( tr( "SSL : Certificate expired" ) );
+				break;
+			case QSslError::InvalidNotBeforeField:
+				print( tr( "SSL : Invalid 'not before' field" ) );
+				break;
+			case QSslError::InvalidNotAfterField:
+				print( tr( "SSL : Invalid 'not after' field" ) );
+				break;
+			case QSslError::SelfSignedCertificate:
+				print( tr( "SSL : Self signed certificate" ) );
+				break;
+			case QSslError::SelfSignedCertificateInChain:
+				print( tr( "SSL : Self signed certificate in chain" ) );
+				break;
+			case QSslError::UnableToGetLocalIssuerCertificate:
+				print( tr( "SSL : Unable to get local issuer certificate" ) );
+				break;
+			case QSslError::UnableToVerifyFirstCertificate:
+				print( tr( "SSL : Unable to verify first certificate" ) );
+				break;
+			case QSslError::CertificateRevoked:
+				print( tr( "SSL : Certificate revoked" ) );
+				break;
+			case QSslError::InvalidCaCertificate:
+				print( tr( "SSL : Invalide Ca certificate" ) );
+				break;
+			case QSslError::PathLengthExceeded:
+				print( tr( "SSL : Path length exceeded" ) );
+				break;
+			case QSslError::InvalidPurpose:
+				print( tr( "SSL : Invalid purpose" ) );
+				break;
+			case QSslError::CertificateUntrusted:
+				print( tr( "SSL : Certificate untrusted" ) );
+				break;
+			case QSslError::CertificateRejected:
+				print( tr( "SSL : Certificate rejected" ) );
+				break;
+			case QSslError::SubjectIssuerMismatch:
+				print( tr( "SSL : Subject issuer mismatch" ) );
+				break;
+			case QSslError::AuthorityIssuerSerialNumberMismatch:
+				print( tr( "SSL : Autority issuer serial number mismatch" ) );
+				break;
+			case QSslError::NoPeerCertificate:
+				print( tr( "SSL : No peer certificate" ) );
+				break;
+			case QSslError::HostNameMismatch:
+				print( tr( "SSL : Hostname mismatch" ) );
+				break;
+			case QSslError::UnspecifiedError:
+				print( tr( "SSL : Unspecified error" ) );
+				break;
+			case QSslError::NoSslSupport:
+				print( tr( "SSL : No SSL Support" ) );
+				break;
+			case QSslError::NoError:
+			default:
+				print( tr( "No SSL error ?! WTF ?! : %s" ).arg( e.errorString() ) );
+		}
+	}
+}
+#endif
 
 void QIrc::sync()
 {
@@ -60,9 +162,25 @@ void QIrc::addValue( QString name, QString value )
 	sync();
 }
 
+void QIrc::join( QString chan )
+{
+	sendRaw( "JOIN #" + chan );
+}
+
+#ifndef QT_NO_OPENSSL
+void QIrc::socketEncrypted()
+{
+	print( tr( "Encryption successful" ) );
+}
+#endif
+
 QString QIrc::getValue( QString name, QString defaut )
 {
-	return conf->value( name, defaut ).toString();
+	QVariant tmp = conf->value( name, defaut );
+	if( tmp.type() == QVariant::StringList )
+		return tmp.toStringList().join( "," );
+	else
+		return tmp.toString();
 }
 
 QStringList QIrc::getValues( QString name )
@@ -226,11 +344,12 @@ void QIrc::parseCommand( QString s )
 			{
 				if( argu[0][0] == '~' || argu[0][0] == ':' )
 					argu[0] = argu[0].mid( 1 );
-				QStringList sender_data = argu[0].split( '!' );
+				QStringList tmp_sender_data = argu[0].split( '!' );
+				QStringList sender_data = QStringList() << tmp_sender_data[0] << tmp_sender_data[1].split( '@' );
 				QString destination = argu[2];
 				
 				// check the hooked events before everything else
-				if( !pseudo_bloques.contains( sender_data[1] ) )
+				if( !pseudo_bloques.contains( sender_data[2] ) )
 				{
 					QString ev = argu[1];
 					if( argu.size() > 3 )
@@ -245,7 +364,7 @@ void QIrc::parseCommand( QString s )
 					argu2.removeFirst();
 					argu2.removeFirst();
 					argu2.removeFirst();
-					
+					/*
 					if( ev == "PART" || ev == "QUIT" )
 					{
 						// if an admin leave, unregister him.
@@ -255,7 +374,7 @@ void QIrc::parseCommand( QString s )
 							admins.remove( admins.indexOf( sender_data[1] ) );
 						}
 					}
-					
+					*/
 					if( sender_data[0] == getValue( "bot/pseudo" ) )
 						ev = "YOU_" + ev; // add "YOU_" when it's a event of the bot
 					if( hook_events.contains( ev ) )
@@ -291,12 +410,16 @@ void QIrc::parseCommand( QString s )
 				{
 					if( argu[0].left( 8 ) == "HostServ" )
 					{
-						QStringList canaux = getValue( "bot/chans" ).split( ' ' );
+						QStringList canaux = getValue( "bot/chans" ).split( ',' );
 						foreach( QString c, canaux )
 						{
-							sendRaw( "JOIN #" + c );
+							join( c );
 						}
 					}
+				}
+				else
+				{
+					qDebug() << "DEBUG : " << argu;
 				}
 			}
 			else // no "!" no the user has no mask, messages from the host
@@ -305,6 +428,11 @@ void QIrc::parseCommand( QString s )
 				int code_msg = argu[1].toInt( &isInt );
 				if( isInt )
 				{
+					if( argu.back().indexOf( '@' ) > -1 )
+					{
+						QString addr = argu.back().split( '@' )[1];
+						QHostInfo::lookupHost( addr, this, SLOT( lookedUp( QHostInfo ) ) );
+					}
 					switch( code_msg )
 					{
 					case 401:
@@ -388,6 +516,28 @@ void QIrc::parseCommand( QString s )
 	}
 }
 
+void QIrc::lookedUp(const QHostInfo &host)
+{
+	if ( host.error() != QHostInfo::NoError )
+	{
+		print( tr( "Lookup failed: %1" ).arg( host.errorString() ) );
+		return;
+	}
+	
+	QList< QHostAddress > adresses = host.addresses();
+	if( adresses.size() == 1 )
+	{
+		QString ip_f = adresses[0].toString();
+		print( tr( "Found address: %1" ).arg( ip_f ) );
+		QStringList ip_list = ip_f.split( "." );
+		ip_addr = (ip_list[0].toUInt() << 24) | (ip_list[1].toUInt() << 16) | (ip_list[2].toUInt() << 8) | ip_list[3].toUInt();
+	}
+	else
+	{
+		print( tr( "%1 addresses found : too many" ).arg( adresses.size() ) );
+	}
+}
+
 void QIrc::send( QString dest, QString message )
 {
 	sendRaw( "PRIVMSG " + dest + " :" + message );
@@ -425,18 +575,18 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 				Dcc * file_dcc = new Dcc( int_to_ip(m[2].toUInt() ), m[3].toUShort(), getValue( "dcc/directory" )+"/"+m[1], m[4].remove( '' ).toUInt() );
 				connect( file_dcc, SIGNAL( onError( QAbstractSocket::SocketError ) ), this, SLOT( dcc_displayError( QAbstractSocket::SocketError ) ) );
 				connect( file_dcc, SIGNAL( onFinished( int, float ) ), this, SLOT( dcc_transfertFinished( int, float ) ) );
-				print( QString( "beginning the DL of %1" ).arg(m[1]) );
+				print( tr( "beginning the DL of %1" ).arg(m[1]) );
 			}
 		}
 		else if( cmd == "admin" )
 		{
-			if( m[0] == getValue( "bot/admin" ) )
+			if( m[0] == getValue( "admin/password" ) )
 			{
-				if( !admins.contains( sender_data[1] ) )
+				if( !admins.contains( sender_data[2] ) )
 				{
-					admins += sender_data[1];
+					admins += sender_data[2];
 					notice( sender_data[0], tr( "you are now identified" ) );
-					print( QString( "%1 successfully identified himself as an admin" ).arg(sender_data[0]) );
+					print( tr( "%1 successfully identified himself as an admin" ).arg(sender_data[0]) );
 				}
 				else
 					notice( sender_data[0], tr( "you are allready identified" ) );
@@ -472,7 +622,7 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 																					<< argu_m
 																					);
 			}
-			else if( isAdmin( sender_data[1] ) )
+			else if( isAdmin( sender_data[2] ) )
 			{
 				if( cmd == "quit" )
 				{
@@ -510,26 +660,19 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 
 void QIrc::deconnection( QString message )
 {
-	QString msg_quit;
-	if( message.length() )
+	if( !message.length() )
 	{
-		msg_quit = message;
-	}
-	else
-	{
-		msg_quit = getValue( "bot/quit_msg" );
+		message = getValue( "bot/quit_msg" );
 	}
 	
-	sendRaw( "QUIT " + msg_quit );
-	socket->flush();
+	sendRaw( "QUIT :" + message );
 	socket->disconnectFromHost();
 }
 
 void QIrc::dcc_transfertFinished( int temps, float vitesse )
 {
-	Dcc * dcc_p = qobject_cast< Dcc * >( sender() );
-	dcc_p->deleteLater();
-	print( QString( "transfert completed in %1sec. (%2ko/s)" ).arg((float)temps/1000).arg(vitesse) );
+	sender()->deleteLater();
+	print( tr( "transfert completed in %1sec. (%2ko/s)" ).arg((float)temps/1000).arg(vitesse) );
 }
 
 void QIrc::dcc_displayError( QAbstractSocket::SocketError erreur )
@@ -551,63 +694,14 @@ void QIrc::dcc_displayError( QAbstractSocket::SocketError erreur )
 }
 
 void QIrc::xdcc_sendFile( QString dest, QString filename )
-{/*
-	print("xdcc send file");
-	xdcc_server = new QTcpServer;
-	xdcc_server->listen(QHostAddress::Any, 5990);
-	connect(xdcc_server, SIGNAL(newConnection()), this, SLOT(xdcc_onConnexion()));
-	send( "Fannsis", "DCC SEND \"favicon.ico\" 1305011269 5990 246" );*/
-}
-
-void QIrc::xdcc_onConnexion()
-{/*
-	print("on xdcc connexion");
-	QTcpSocket * socket_xdcc = xdcc_server->nextPendingConnection();
-	connect( socket_xdcc, SIGNAL(readyRead()), this, SLOT(xdcc_readData()) );
-	connect( socket_xdcc, SIGNAL(connected()), this, SLOT(xdcc_connecte()) );
-	connect( socket_xdcc, SIGNAL(disconnected()), this, SLOT(xdcc_deconnecte()) );
-	connect( socket_xdcc, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(xdcc_displayError(QAbstractSocket::SocketError)) );*/
-}
-
-void QIrc::xdcc_readData()
 {
-//	QTcpSocket * sock_sender = qobject_cast< QTcpSocket * >( sender() );
-//	print( "xdcc reading : " << sock_sender->readAll() );
-}
-
-void QIrc::xdcc_connecte()
-{
-/*	print("on xdcc connected");
-	QTcpSocket * sock_sender = qobject_cast< QTcpSocket * >( sender() );
-	if( fichiers_xdcc.contains( sock_sender ) )
-	{
-		QFile f("C:\\wamp\\www\\peyj\\favicon.ico");
-		f.open(QIODevice::ReadOnly);
-		sock_sender->write( f.readAll() );
-		print( tr( "transfert beginning" ) ) );
-	}
-	else
-		print( tr( "no such socket : connection" ) );*/
-}
-
-void QIrc::xdcc_deconnecte()
-{/*
-	QTcpSocket * sock_sender = qobject_cast< QTcpSocket * >( sender() );
-	if( fichiers_xdcc.contains( sock_sender ) )
-	{
-		fichiers_xdcc[sock_sender]->close();
-		fichiers_xdcc.remove( sock_sender );
-		sock_sender->deleteLater();
-		xdcc_server->close();
-		xdcc_server->deleteLater();
-		print( tr( "transfert terminated" ) );
-	}
-	else
-		print( tr( "no such socket : disconnection" ) );*/
+	print( tr( "xdcc send file : %1" ).arg( filename ) );
+	XDCC * xdcc = new XDCC( this, dest, filename );
+	connect( xdcc, SIGNAL( onError( QAbstractSocket::SocketError ) ), this, SLOT( xdcc_displayError( QAbstractSocket::SocketError ) ) );
 }
 
 void QIrc::xdcc_displayError( QAbstractSocket::SocketError erreur )
-{/*
+{
 	switch( erreur ) // On affiche un message différent selon l'erreur qu'on nous indique
 	{
 		case QAbstractSocket::HostNotFoundError:
@@ -621,5 +715,5 @@ void QIrc::xdcc_displayError( QAbstractSocket::SocketError erreur )
 			break;
 		default:
 			print( tr( "ERROR XDCC : %1" ).arg( socket->errorString() ) );
-	}*/
+	}
 }

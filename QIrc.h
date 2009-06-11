@@ -37,6 +37,8 @@ public slots:
 	void notice( QString dest, QString message );
 	// perform the "message" as an action
 	void action( QString dest, QString message );
+	// join a chan
+	void join( QString chan );
 	// add an entry in the settings file
 	void addValue( QString name, QString value );
 	// get the value of an entry in the settings file
@@ -44,7 +46,7 @@ public slots:
 	// return all the value of a group in the settings file
 	QStringList getValues( QString name );
 	// return "true" if the user "name" has been identified as an admin
-	bool isAdmin( QString pseudo ) { return admins.contains( pseudo ); };
+	bool isAdmin( QString host ) { return admins.contains( host ); };
 	// disconnect the bot
 	void deconnection( QString message = QString() );
 	// send the file "filename" to "dest"
@@ -61,11 +63,14 @@ private slots:
 	void dcc_displayError( QAbstractSocket::SocketError erreur );
 	void dcc_transfertFinished( int temps, float vitesse );
 	// for the socket from outcoming dcc
-	void xdcc_readData();
-	void xdcc_connecte();
-	void xdcc_deconnecte();
 	void xdcc_displayError( QAbstractSocket::SocketError erreur );
-	void xdcc_onConnexion();
+	// get my ip
+	void lookedUp(const QHostInfo &host);
+#ifndef QT_NO_OPENSSL
+	// is encrypted
+	void socketEncrypted();
+	void onSslErrors( const QList<QSslError> & );
+#endif
 
 private:
 	// send a raw command
@@ -78,10 +83,15 @@ private:
 	void loadScripts();
 	void unloadScripts();
 	
-	QTcpSocket *socket;
-	QSettings* conf;
+#ifndef QT_NO_OPENSSL
+	QSslSocket * socket;
+#else
+	QTcpSocket * socket;
+#endif
+	QSettings * conf;
 	QString messageRecu;
 	bool connected;
+	unsigned int ip_addr;
 	
 	QHash< QString, QPair< QScriptEngine *, QScriptValue > > commandes;
 	QHash< QString, QVector< QPair< QScriptEngine *, QScriptValue > > > hook_events;
@@ -90,10 +100,6 @@ private:
 	QStringList pseudo_bloques;
 	// logged admin
 	QVector< QString > admins;
-	// dcc files sockets (outcome)
-	QHash< QTcpSocket *, QString > fichiers_xdcc;
-	// the xdcc server
-	QTcpServer * xdcc_server;
 };
 
 #endif
