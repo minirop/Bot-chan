@@ -423,10 +423,6 @@ void QIrc::parseCommand( QString s )
 						
 					}
 				}
-				else
-				{
-					qDebug() << "DEBUG : " << argu;
-				}
 			}
 			else // no "!" no the user has no mask, messages from the host
 			{

@@ -39,8 +39,7 @@ var func_hook_event = function()
 
 var func_event = function( command, sender, dest, argu )
 {
-	this.irc.print( command + " : " + sender + " : " + dest + " : " + argu ); 
-	if( command == "join" )
+	if( command == "JOIN" )
 	{
 		if( greetings[ sender[1] ] )
 		{
