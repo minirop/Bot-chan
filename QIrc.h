@@ -39,6 +39,8 @@ public slots:
 	void action( QString dest, QString message );
 	// join a chan
 	void join( QString chan );
+	// leave a chan
+	void leave( QString chan, QString reason );
 	// add an entry in the settings file
 	void addValue( QString name, QString value );
 	// get the value of an entry in the settings file

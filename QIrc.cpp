@@ -167,6 +167,11 @@ void QIrc::join( QString chan )
 	sendRaw( "JOIN #" + chan );
 }
 
+void QIrc::leave( QString chan, QString reason )
+{
+	sendRaw( "PART #" + chan + ": " + reason );
+}
+
 #ifndef QT_NO_OPENSSL
 void QIrc::socketEncrypted()
 {
@@ -282,7 +287,7 @@ void QIrc::connecte()
 	if( !getValue( "bot/password" ).isEmpty() )
 	{
 		sendRaw( "PRIVMSG NickServ :IDENTIFY " + getValue( "bot/password" ) );
-		print( tr("password identification") );
+		print( tr( "password identification" ) );
 	}
 	
 	sendRaw( "MODE " + getValue( "bot/pseudo" ) + " +B" );
@@ -589,7 +594,7 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 					print( tr( "%1 successfully identified himself as an admin" ).arg(sender_data[0]) );
 				}
 				else
-					notice( sender_data[0], tr( "you are allready identified" ) );
+					notice( sender_data[0], tr( "you are already identified" ) );
 			}
 			else
 			{
