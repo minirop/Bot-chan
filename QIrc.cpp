@@ -284,12 +284,6 @@ void QIrc::connecte()
 	print( tr( "Connection established" ) );
 	sendRaw( "NICK " + getValue( "bot/pseudo" ) + "\r\nUSER " + getValue( "bot/ident" ) + " " + getValue( "bot/ident" ) + " " + socket->peerName() + " :" + getValue( "bot/real_name" ) );
 	
-	if( !getValue( "bot/password" ).isEmpty() )
-	{
-		sendRaw( "PRIVMSG NickServ :IDENTIFY " + getValue( "bot/password" ) );
-		print( tr( "password identification" ) );
-	}
-	
 	sendRaw( "MODE " + getValue( "bot/pseudo" ) + " +B" );
 }
 
@@ -413,13 +407,20 @@ void QIrc::parseCommand( QString s )
 				}
 				else if( argu[1] == "NOTICE" )
 				{
-					if( argu[0].left( 8 ) == "HostServ" )
+					if( argu[0].left( 6 ) == "Global" )
 					{
 						QStringList canaux = getValue( "bot/chans" ).split( ',' );
 						foreach( QString c, canaux )
 						{
 							join( c );
 						}
+						
+						if( !getValue( "bot/password" ).isEmpty() )
+						{
+							sendRaw( "PRIVMSG NickServ :IDENTIFY " + getValue( "bot/password" ) );
+							print( tr( "password identification" ) );
+						}
+						
 					}
 				}
 				else
