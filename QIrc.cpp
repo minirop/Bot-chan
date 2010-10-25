@@ -636,6 +636,14 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 					loadScripts();
 					notice( sender_data[0], tr("reloaded") );
 				}
+				else if( cmd == "admins" )
+				{
+					send( sender_data[0], "Identified admins" );
+					foreach( QString s, admins)
+					{
+						send( sender_data[0], s );
+					}
+				}
 			}
 		}
 	}
