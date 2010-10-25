@@ -582,7 +582,7 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 		}
 		else if( cmd == "admin" )
 		{
-			if( m[0] == getValue( "admin/password" ) )
+			if( m.size() && m[0] == getValue( "admin/password" ) )
 			{
 				if( !admins.contains( sender_data[2] ) )
 				{
