@@ -641,7 +641,7 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 					send( sender_data[0], "Identified admins" );
 					foreach( QString s, admins)
 					{
-						send( sender_data[0], s );
+						send( sender_data[0], "- " + s );
 					}
 				}
 			}

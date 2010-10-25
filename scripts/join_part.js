@@ -1,13 +1,13 @@
 var func_exec = function( command, sender, dest, argu )
 {
-	if( this.irc.isAdmin( sender[1] ) )
+	if( this.irc.isAdmin( sender[2] ) )
 	{
 		if( command == "join" || command == "!goto" )
 		{
-			this.irc.join( "JOIN " + dest );
+			this.irc.join( dest );
 			for(i = 0;i < argu.length; ++i)
 			{
-				this.irc.join( "JOIN " + argu[i] );
+				this.irc.join( argu[i] );
 			}
 		}
 		else if( command == "!degage" )
@@ -24,7 +24,7 @@ var func_exec = function( command, sender, dest, argu )
 					part_msg = this.irc.getValue( "bot/quit_msg" );
 				}
 				
-				this.irc.leave( "PART " + dest + " " + part_msg );
+				this.irc.leave( dest, part_msg );
 			}
 		}
 	}

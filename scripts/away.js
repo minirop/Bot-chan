@@ -1,6 +1,6 @@
 var func_exec = function( command, sender, dest, argu )
 {
-	if( this.irc.isAdmin( sender[1] ) )
+	if( this.irc.isAdmin( sender[2] ) )
 	{
 		if( command == "away" )
 		{
