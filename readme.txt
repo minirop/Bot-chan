@@ -13,10 +13,9 @@ go where there is botchan.pro and do :
 Bugs
 ====
 
-If you experiences any bugs, please submit them using the "Bugs" 
-interface on the google hosting page:
+If you experiences any bugs, please submit them using the "Issues" interface:
    
-   http://code.google.com/p/bot-chan/issues/list
+https://github.com/minirop/Bot-chan/issues
 
 License
 =======
