@@ -37,6 +37,7 @@ QIrc::QIrc()
 {
 	conf = new QSettings( "config.ini", QSettings::IniFormat, this );
 	connected = false;
+	debug_mode = getValue( "bot/debug" ).toInt();
 	
 	pseudo_bloques = getValue( "bot/ignore" ).split( ',' );
 	admins = getValue( "admin/hosts" ).remove( ' ' ).split( ',' ).toVector();
@@ -72,76 +73,76 @@ void QIrc::onSslErrors( const QList<QSslError> & erreurs )
 		switch(e.error())
 		{
 			case QSslError::UnableToGetIssuerCertificate:
-				print( tr( "SSL : Unable to get issuer certificate" ) );
+				warning( tr( "SSL : Unable to get issuer certificate" ) );
 				break;
 			case QSslError::UnableToDecryptCertificateSignature:
-				print( tr( "SSL : Unable to decrypt certificate signature" ) );
+				warning( tr( "SSL : Unable to decrypt certificate signature" ) );
 				break;
 			case QSslError::UnableToDecodeIssuerPublicKey:
-				print( tr( "SSL : Unable to decode issuer public key" ) );
+				warning( tr( "SSL : Unable to decode issuer public key" ) );
 				break;
 			case QSslError::CertificateSignatureFailed:
-				print( tr( "SSL : Certificate signature failed" ) );
+				warning( tr( "SSL : Certificate signature failed" ) );
 				break;
 			case QSslError::CertificateNotYetValid:
-				print( tr( "SSL : Certificate not yet valid" ) );
+				warning( tr( "SSL : Certificate not yet valid" ) );
 				break;
 			case QSslError::CertificateExpired:
-				print( tr( "SSL : Certificate expired" ) );
+				warning( tr( "SSL : Certificate expired" ) );
 				break;
 			case QSslError::InvalidNotBeforeField:
-				print( tr( "SSL : Invalid 'not before' field" ) );
+				warning( tr( "SSL : Invalid 'not before' field" ) );
 				break;
 			case QSslError::InvalidNotAfterField:
-				print( tr( "SSL : Invalid 'not after' field" ) );
+				warning( tr( "SSL : Invalid 'not after' field" ) );
 				break;
 			case QSslError::SelfSignedCertificate:
-				print( tr( "SSL : Self signed certificate" ) );
+				warning( tr( "SSL : Self signed certificate" ) );
 				break;
 			case QSslError::SelfSignedCertificateInChain:
-				print( tr( "SSL : Self signed certificate in chain" ) );
+				warning( tr( "SSL : Self signed certificate in chain" ) );
 				break;
 			case QSslError::UnableToGetLocalIssuerCertificate:
-				print( tr( "SSL : Unable to get local issuer certificate" ) );
+				warning( tr( "SSL : Unable to get local issuer certificate" ) );
 				break;
 			case QSslError::UnableToVerifyFirstCertificate:
-				print( tr( "SSL : Unable to verify first certificate" ) );
+				warning( tr( "SSL : Unable to verify first certificate" ) );
 				break;
 			case QSslError::CertificateRevoked:
-				print( tr( "SSL : Certificate revoked" ) );
+				warning( tr( "SSL : Certificate revoked" ) );
 				break;
 			case QSslError::InvalidCaCertificate:
-				print( tr( "SSL : Invalide Ca certificate" ) );
+				warning( tr( "SSL : Invalide Ca certificate" ) );
 				break;
 			case QSslError::PathLengthExceeded:
-				print( tr( "SSL : Path length exceeded" ) );
+				warning( tr( "SSL : Path length exceeded" ) );
 				break;
 			case QSslError::InvalidPurpose:
-				print( tr( "SSL : Invalid purpose" ) );
+				warning( tr( "SSL : Invalid purpose" ) );
 				break;
 			case QSslError::CertificateUntrusted:
-				print( tr( "SSL : Certificate untrusted" ) );
+				warning( tr( "SSL : Certificate untrusted" ) );
 				break;
 			case QSslError::CertificateRejected:
-				print( tr( "SSL : Certificate rejected" ) );
+				warning( tr( "SSL : Certificate rejected" ) );
 				break;
 			case QSslError::SubjectIssuerMismatch:
-				print( tr( "SSL : Subject issuer mismatch" ) );
+				warning( tr( "SSL : Subject issuer mismatch" ) );
 				break;
 			case QSslError::AuthorityIssuerSerialNumberMismatch:
-				print( tr( "SSL : Autority issuer serial number mismatch" ) );
+				warning( tr( "SSL : Autority issuer serial number mismatch" ) );
 				break;
 			case QSslError::NoPeerCertificate:
-				print( tr( "SSL : No peer certificate" ) );
+				warning( tr( "SSL : No peer certificate" ) );
 				break;
 			case QSslError::HostNameMismatch:
-				print( tr( "SSL : Hostname mismatch" ) );
+				warning( tr( "SSL : Hostname mismatch" ) );
 				break;
 			case QSslError::UnspecifiedError:
-				print( tr( "SSL : Unspecified error" ) );
+				warning( tr( "SSL : Unspecified error" ) );
 				break;
 			case QSslError::NoSslSupport:
-				print( tr( "SSL : No SSL Support" ) );
+				warning( tr( "SSL : No SSL Support" ) );
 				break;
 			case QSslError::NoError:
 			default:
@@ -164,12 +165,18 @@ void QIrc::addValue( QString name, QString value )
 
 void QIrc::join( QString chan )
 {
-	sendRaw( "JOIN #" + chan );
+	if(chan.count(',') > 1)
+		warning( tr("a chan name can only have a single comma, separating the name and the key") );
+	else
+	{
+		chan.replace(',', ' ');
+		sendRaw( "JOIN " + chan );
+	}
 }
 
 void QIrc::leave( QString chan, QString reason )
 {
-	sendRaw( "PART #" + chan + ": " + reason );
+	sendRaw( "PART " + chan + ": " + reason );
 }
 
 #ifndef QT_NO_OPENSSL
@@ -199,12 +206,17 @@ QStringList QIrc::getValues( QString name )
 
 void QIrc::scriptError( const QScriptValue & exception )
 {
-	print( tr( "Script error : %1" ).arg( exception.toString() ) );
+	warning( tr( "Script error : %1" ).arg( exception.toString() ) );
+}
+
+void QIrc::warning( QString message )
+{
+	qWarning( "%s", qPrintable(message) );
 }
 
 void QIrc::print( QString message )
 {
-	qDebug() << message;
+	qDebug( "%s", qPrintable(message) );
 }
 
 void QIrc::unloadScripts()
@@ -269,7 +281,7 @@ void QIrc::loadScripts()
 		}
 		else
 		{
-			print( tr( "ERROR : couldn't open : scripts/%1" ).arg( entries.at( i ).fileName() ) );
+			warning( tr( "ERROR : couldn't open : scripts/%1" ).arg( entries.at( i ).fileName() ) );
 		}
 	}
 }
@@ -297,16 +309,16 @@ void QIrc::displayError( QAbstractSocket::SocketError erreur )
 	switch( erreur ) // On affiche un message différent selon l'erreur qu'on nous indique
 	{
 		case QAbstractSocket::HostNotFoundError:
-			print( tr( "ERROR : host not found." ) );
+			warning( tr( "ERROR : host not found." ) );
 			break;
 		case QAbstractSocket::ConnectionRefusedError:
-			print( tr( "ERROR : connection refused." ) );
+			warning( tr( "ERROR : connection refused." ) );
 			break;
 		case QAbstractSocket::RemoteHostClosedError:
-			print( tr( "ERROR : remote host closed the connection." ) );
+			warning( tr( "ERROR : remote host closed the connection." ) );
 			break;
 		default:
-			print( tr( "ERROR : %1" ).arg( socket->errorString() ) );
+			warning( tr( "ERROR : %1" ).arg( socket->errorString() ) );
 	}
 }
 
@@ -412,7 +424,7 @@ void QIrc::parseCommand( QString s )
 						QStringList canaux = getValue( "bot/chans" ).split( ',' );
 						foreach( QString c, canaux )
 						{
-							join( c );
+							join( "#" + c );
 						}
 						
 						if( !getValue( "bot/password" ).isEmpty() )
@@ -438,64 +450,64 @@ void QIrc::parseCommand( QString s )
 					switch( code_msg )
 					{
 					case 401:
-						print( tr("no such nick/channel") );
+						warning( tr("no such nick/channel") );
 						break;
 					case 403:
-						print( tr("no such channel") );
+						warning( tr("no such channel") );
 						break;
 					case 404:
-						print( tr("cannot send text to channel") );
+						warning( tr("cannot send text to channel") );
 						break;
 					case 405:
-						print( tr("too many channels joined") );
+						warning( tr("too many channels joined") );
 						break;
 					case 407:
-						print( tr("duplicate entries") );
+						warning( tr("duplicate entries") );
 						break;
 					case 421:
-						print( tr("unknown command") );
+						warning( tr("unknown command") );
 						break;
 					case 431:
-						print( tr("no nick given") );
+						warning( tr("no nick given") );
 						break;
 					case 432:
-						print( tr("erroneus nickname (invalid character)") );
+						warning( tr("erroneus nickname (invalid character)") );
 						break;
 					case 433:
-						print( tr("nick already in use") );
+						warning( tr("nick already in use") );
 						break;
 					case 436:
-						print( tr("nickname collision") );
+						warning( tr("nickname collision") );
 						break;
 					case 442:
-						print( tr("you are not on that channel") );
+						warning( tr("you are not on that channel") );
 						break;
 					case 451:
-						print( tr("you have not registered") );
+						warning( tr("you have not registered") );
 						break;
 					case 461:
-						print( tr("no enough parameters") );
+						warning( tr("no enough parameters") );
 						break;
 					case 464:
-						print( tr("password incorrect") );
+						warning( tr("password incorrect") );
 						break;
 					case 471:
-						print( tr("cannot join this channel (full)") );
+						warning( tr("cannot join this channel (full)") );
 						break;
 					case 473:
-						print( tr("cannot join this channel (invite only)") );
+						warning( tr("cannot join this channel (invite only)") );
 						break;
 					case 474:
-						print( tr("cannot join this channel (you've been ban)") );
+						warning( tr("cannot join this channel (you've been ban)") );
 						break;
 					case 475:
-						print( tr("cannot join this channel (need password)") );
+						warning( tr("cannot join this channel (need password)") );
 						break;
 					case 481:
-						print( tr("you are not an IRC operator") );
+						warning( tr("you are not an IRC operator") );
 						break;
 					case 482:
-						print( tr("you are not a channel operator") );
+						warning( tr("you are not a channel operator") );
 						break;
 					default:
 						// useless numbers
@@ -513,7 +525,7 @@ void QIrc::parseCommand( QString s )
 		else // used to know which message hasn't been hooked
 		{
 			// this shouldn't happened
-			print( tr( "unparsed message : %1" ).arg( s ) );
+			warning( tr( "unparsed message : %1" ).arg( s ) );
 		}
 	}
 }
@@ -522,7 +534,7 @@ void QIrc::lookedUp(const QHostInfo &host)
 {
 	if ( host.error() != QHostInfo::NoError )
 	{
-		print( tr( "Lookup failed: %1" ).arg( host.errorString() ) );
+		warning( tr( "Lookup failed: %1" ).arg( host.errorString() ) );
 		return;
 	}
 	
@@ -536,7 +548,7 @@ void QIrc::lookedUp(const QHostInfo &host)
 	}
 	else
 	{
-		print( tr( "%1 addresses found : too many" ).arg( adresses.size() ) );
+		warning( tr( "%1 addresses found : too many" ).arg( adresses.size() ) );
 	}
 }
 
@@ -690,16 +702,16 @@ void QIrc::dcc_displayError( QAbstractSocket::SocketError erreur )
 	switch( erreur )
 	{
 		case QAbstractSocket::HostNotFoundError:
-			print( tr( "ERROR DCC : host not found." ) );
+			warning( tr( "ERROR DCC : host not found." ) );
 			break;
 		case QAbstractSocket::ConnectionRefusedError:
-			print( tr( "ERROR DCC : connection refused." ) );
+			warning( tr( "ERROR DCC : connection refused." ) );
 			break;
 		case QAbstractSocket::RemoteHostClosedError:
-			print( tr( "ERROR DCC : remote host closed the connection." ) );
+			warning( tr( "ERROR DCC : remote host closed the connection." ) );
 			break;
 		default:
-			print( tr( "ERROR DCC : %1" ).arg( socket->errorString() ) );
+			warning( tr( "ERROR DCC : %1" ).arg( socket->errorString() ) );
 	}
 }
 
@@ -715,15 +727,15 @@ void QIrc::xdcc_displayError( QAbstractSocket::SocketError erreur )
 	switch( erreur ) // On affiche un message différent selon l'erreur qu'on nous indique
 	{
 		case QAbstractSocket::HostNotFoundError:
-			print( tr( "ERROR XDCC : host not found." ) );
+			warning( tr( "ERROR XDCC : host not found." ) );
 			break;
 		case QAbstractSocket::ConnectionRefusedError:
-			print( tr( "ERROR XDCC : connection refused." ) );
+			warning( tr( "ERROR XDCC : connection refused." ) );
 			break;
 		case QAbstractSocket::RemoteHostClosedError:
-			print( tr( "ERROR XDCC : remote host closed the connection." ) );
+			warning( tr( "ERROR XDCC : remote host closed the connection." ) );
 			break;
 		default:
-			print( tr( "ERROR XDCC : %1" ).arg( socket->errorString() ) );
+			warning( tr( "ERROR XDCC : %1" ).arg( socket->errorString() ) );
 	}
 }

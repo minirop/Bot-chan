@@ -31,6 +31,8 @@ public:
 public slots:
 	// print "message" in the console
 	void print( QString message );
+	// print "message" in the console (with a warning, can be hidden)
+	void warning( QString message );
 	// send "message" to "dest"
 	void send( QString dest, QString message );
 	// send "message" to "dest" as a notice
@@ -94,6 +96,7 @@ private:
 	QString messageRecu;
 	bool connected;
 	unsigned int ip_addr;
+	unsigned int debug_mode;
 	
 	QHash< QString, QPair< QScriptEngine *, QScriptValue > > commandes;
 	QHash< QString, QVector< QPair< QScriptEngine *, QScriptValue > > > hook_events;
