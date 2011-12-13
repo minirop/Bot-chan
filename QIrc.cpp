@@ -146,7 +146,7 @@ void QIrc::onSslErrors( const QList<QSslError> & erreurs )
 				break;
 			case QSslError::NoError:
 			default:
-				print( tr( "No SSL error ?! WTF ?! : %s" ).arg( e.errorString() ) );
+				debug( tr( "No SSL error ?! WTF ?! : %s" ).arg( e.errorString() ) );
 		}
 	}
 }
@@ -155,6 +155,17 @@ void QIrc::onSslErrors( const QList<QSslError> & erreurs )
 void QIrc::sync()
 {
 	conf->sync();
+}
+
+void QIrc::identification()
+{
+	sendRaw( "MODE " + getValue( "bot/pseudo" ) + " +B" );
+	
+	if( !getValue( "bot/password" ).isEmpty() )
+	{
+		sendRaw( "PRIVMSG NickServ :IDENTIFY " + getValue( "bot/password" ) );
+		debug( tr( "password identification" ) );
+	}
 }
 
 void QIrc::addValue( QString name, QString value )
@@ -169,6 +180,7 @@ void QIrc::join( QString chan )
 		warning( tr("a chan name can only have a single comma, separating the name and the key") );
 	else
 	{
+		debug( QString("joining %1").arg(chan.left(chan.indexOf(','))) );
 		chan.replace(',', ' ');
 		sendRaw( "JOIN " + chan );
 	}
@@ -176,13 +188,14 @@ void QIrc::join( QString chan )
 
 void QIrc::leave( QString chan, QString reason )
 {
+	debug( QString("leaving %1").arg(chan) );
 	sendRaw( "PART " + chan + ": " + reason );
 }
 
 #ifndef QT_NO_OPENSSL
 void QIrc::socketEncrypted()
 {
-	print( tr( "Encryption successful" ) );
+	debug( tr( "Encryption successful" ) );
 }
 #endif
 
@@ -216,7 +229,14 @@ void QIrc::warning( QString message )
 
 void QIrc::print( QString message )
 {
-	qDebug( "%s", qPrintable(message) );
+	if(debug_mode)
+		qDebug( "%s", qPrintable(message) );
+}
+
+void QIrc::debug( QString message )
+{
+	if(debug_mode > 1)
+		qDebug( "%s", qPrintable(message) );
 }
 
 void QIrc::unloadScripts()
@@ -248,7 +268,7 @@ void QIrc::loadScripts()
 			engine->globalObject().setProperty( "irc", engine->newQObject( this ) );
 			engine->evaluate( script_content );
 			
-			print( tr( "loading : %1" ).arg( entries.at(i).fileName() ) );
+			debug( tr( "loading : %1" ).arg( entries.at(i).fileName() ) );
 			
 			QScriptValue hook = engine->evaluate( "func_hook" );
 			if( hook.isValid() )
@@ -260,7 +280,7 @@ void QIrc::loadScripts()
 					{
 						commandes[ s ].first = engine;
 						commandes[ s ].second = engine->evaluate( "func_exec" );
-						print( tr( "hook command : %1" ).arg( s ) );
+						debug( tr( "hook command : %1" ).arg( s ) );
 					}
 				}
 			}
@@ -274,7 +294,7 @@ void QIrc::loadScripts()
 					foreach( QString s, hooks_event.toString().split( ',' ) )
 					{
 						hook_events[ s ] += qMakePair( engine, engine->evaluate( "func_event" ) );
-						print( tr( "hook event : %1" ).arg( s ) );
+						debug( tr( "hook event : %1" ).arg( s ) );
 					}
 				}
 			}
@@ -293,15 +313,13 @@ void QIrc::sendRaw( QString s )
 
 void QIrc::connecte()
 {
-	print( tr( "Connection established" ) );
+	debug( tr( "Connection established" ) );
 	sendRaw( "NICK " + getValue( "bot/pseudo" ) + "\r\nUSER " + getValue( "bot/ident" ) + " " + getValue( "bot/ident" ) + " " + socket->peerName() + " :" + getValue( "bot/real_name" ) );
-	
-	sendRaw( "MODE " + getValue( "bot/pseudo" ) + " +B" );
 }
 
 void QIrc::deconnecte()
 {
-	print( tr( "disconnected" ) );
+	debug( tr( "disconnected" ) );
 }
 
 void QIrc::displayError( QAbstractSocket::SocketError erreur )
@@ -421,18 +439,11 @@ void QIrc::parseCommand( QString s )
 				{
 					if( argu[0].left( 6 ) == "Global" )
 					{
-						QStringList canaux = getValue( "bot/chans" ).split( ',' );
+						QStringList canaux = getValue( "bot/chans" ).split( ' ' );
 						foreach( QString c, canaux )
 						{
 							join( "#" + c );
 						}
-						
-						if( !getValue( "bot/password" ).isEmpty() )
-						{
-							sendRaw( "PRIVMSG NickServ :IDENTIFY " + getValue( "bot/password" ) );
-							print( tr( "password identification" ) );
-						}
-						
 					}
 				}
 			}
@@ -449,6 +460,9 @@ void QIrc::parseCommand( QString s )
 					}
 					switch( code_msg )
 					{
+					case 376:
+						identification();
+						break;
 					case 401:
 						warning( tr("no such nick/channel") );
 						break;
@@ -542,7 +556,7 @@ void QIrc::lookedUp(const QHostInfo &host)
 	if( adresses.size() == 1 )
 	{
 		QString ip_f = adresses[0].toString();
-		print( tr( "Found address: %1" ).arg( ip_f ) );
+		debug( tr( "Found address: %1" ).arg( ip_f ) );
 		QStringList ip_list = ip_f.split( "." );
 		ip_addr = (ip_list[0].toUInt() << 24) | (ip_list[1].toUInt() << 16) | (ip_list[2].toUInt() << 8) | ip_list[3].toUInt();
 	}
@@ -589,7 +603,7 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 				Dcc * file_dcc = new Dcc( int_to_ip(m[2].toUInt() ), m[3].toUShort(), getValue( "dcc/directory" )+"/"+m[1], m[4].remove( '' ).toUInt() );
 				connect( file_dcc, SIGNAL( onError( QAbstractSocket::SocketError ) ), this, SLOT( dcc_displayError( QAbstractSocket::SocketError ) ) );
 				connect( file_dcc, SIGNAL( onFinished( int, float ) ), this, SLOT( dcc_transfertFinished( int, float ) ) );
-				print( tr( "beginning the DL of %1" ).arg(m[1]) );
+				debug( tr( "beginning the DL of %1" ).arg(m[1]) );
 			}
 		}
 		else if( cmd == "admin" )
@@ -600,7 +614,7 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 				{
 					admins += sender_data[2];
 					notice( sender_data[0], tr( "you are now identified" ) );
-					print( tr( "%1 successfully identified himself as an admin" ).arg(sender_data[0]) );
+					debug( tr( "%1 successfully identified himself as an admin" ).arg(sender_data[0]) );
 				}
 				else
 					notice( sender_data[0], tr( "you are already identified" ) );
@@ -608,7 +622,7 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 			else
 			{
 				notice( sender_data[0], tr( "wrong password" ) );
-				print( tr("%1 try the password : %2").arg(sender_data[0]).arg(m[0]) );
+				warning( tr("%1 try the password : %2").arg(sender_data[0]).arg(m[0]) );
 			}
 		}
 		else
@@ -694,7 +708,7 @@ void QIrc::deconnection( QString message )
 void QIrc::dcc_transfertFinished( int temps, float vitesse )
 {
 	sender()->deleteLater();
-	print( tr( "transfert completed in %1sec. (%2ko/s)" ).arg((float)temps/1000).arg(vitesse) );
+	debug( tr( "transfert completed in %1sec. (%2ko/s)" ).arg((float)temps/1000).arg(vitesse) );
 }
 
 void QIrc::dcc_displayError( QAbstractSocket::SocketError erreur )
@@ -717,7 +731,7 @@ void QIrc::dcc_displayError( QAbstractSocket::SocketError erreur )
 
 void QIrc::xdcc_sendFile( QString dest, QString filename )
 {
-	print( tr( "xdcc send file : %1" ).arg( filename ) );
+	debug( tr( "xdcc send file : %1" ).arg( filename ) );
 	XDCC * xdcc = new XDCC( this, dest, filename );
 	connect( xdcc, SIGNAL( onError( QAbstractSocket::SocketError ) ), this, SLOT( xdcc_displayError( QAbstractSocket::SocketError ) ) );
 }

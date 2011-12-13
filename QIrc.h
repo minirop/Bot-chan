@@ -33,6 +33,8 @@ public slots:
 	void print( QString message );
 	// print "message" in the console (with a warning, can be hidden)
 	void warning( QString message );
+	// print "message" in the console (if debug mode >= 2)
+	void debug( QString message );
 	// send "message" to "dest"
 	void send( QString dest, QString message );
 	// send "message" to "dest" as a notice
@@ -81,6 +83,8 @@ private:
 	void sendRaw( QString  s );
 	// update the ini file
 	void sync();
+	// send identification commands
+	void identification();
 	
 	void parseCommand( QString s );
 	void dispatchMessage( QStringList sender_data, QString destination, QString command );
