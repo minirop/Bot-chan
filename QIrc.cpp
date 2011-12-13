@@ -50,6 +50,10 @@ QIrc::QIrc()
 	connect( socket, SIGNAL( encrypted() ), this, SLOT( socketEncrypted() ) );
 	connect( socket, SIGNAL( sslErrors ( const QList<QSslError> & ) ), this, SLOT( onSslErrors( const QList<QSslError> & ) ) );
 #else
+	if( getValue( "bot/ssl" ).toInt() )
+	{
+		warning( "SSL not available" );
+	}
 	socket = new QTcpSocket( this );
 #endif
 	connect( socket, SIGNAL( readyRead() ), this, SLOT( readData() ) );
@@ -165,6 +169,17 @@ void QIrc::identification()
 	{
 		sendRaw( "PRIVMSG NickServ :IDENTIFY " + getValue( "bot/password" ) );
 		debug( tr( "password identification" ) );
+	}
+	else // if no password, join the channels now
+		joinChannels();
+}
+
+void QIrc::joinChannels()
+{
+	QStringList canaux = getValue( "bot/chans" ).split( ' ' );
+	foreach( QString c, canaux )
+	{
+		join( "#" + c );
 	}
 }
 
@@ -437,14 +452,7 @@ void QIrc::parseCommand( QString s )
 				}
 				else if( argu[1] == "NOTICE" )
 				{
-					if( argu[0].left( 6 ) == "Global" )
-					{
-						QStringList canaux = getValue( "bot/chans" ).split( ' ' );
-						foreach( QString c, canaux )
-						{
-							join( "#" + c );
-						}
-					}
+					// empty for now
 				}
 			}
 			else // no "!" no the user has no mask, messages from the host
@@ -528,7 +536,14 @@ void QIrc::parseCommand( QString s )
 						;
 					}
 				}
-				// we don't care about the messages from the server if it's not a "number" message.
+				else
+				{
+					// when the server says that the bot has logged-in
+					if(argu[1] == "MODE" && argu[3] == ":+r")
+					{
+						joinChannels();
+					}
+				}
 			}
 		}
 		else if( s.section( ' ', 0, 0 ) == "PING" )

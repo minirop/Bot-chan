@@ -85,6 +85,7 @@ private:
 	void sync();
 	// send identification commands
 	void identification();
+	void joinChannels();
 	
 	void parseCommand( QString s );
 	void dispatchMessage( QStringList sender_data, QString destination, QString command );
