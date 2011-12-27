@@ -455,7 +455,7 @@ void QIrc::parseCommand( QString s )
 					// empty for now
 				}
 			}
-			else // no "!" no the user has no mask, messages from the host
+			else // no "!" so the user has no mask, messages from the host
 			{
 				bool isInt;
 				int code_msg = argu[1].toInt( &isInt );
@@ -744,7 +744,7 @@ void QIrc::dcc_displayError( QAbstractSocket::SocketError erreur )
 	}
 }
 
-void QIrc::xdcc_sendFile( QString dest, QString filename )
+void QIrc::sendFile( QString dest, QString filename )
 {
 	debug( tr( "xdcc send file : %1" ).arg( filename ) );
 	XDCC * xdcc = new XDCC( this, dest, filename );

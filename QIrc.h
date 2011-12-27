@@ -56,7 +56,7 @@ public slots:
 	// disconnect the bot
 	void deconnection( QString message = QString() );
 	// send the file "filename" to "dest"
-	void xdcc_sendFile( QString dest, QString filename );
+	void sendFile( QString dest, QString filename );
 
 private slots:
 	void scriptError( const QScriptValue & exception );
