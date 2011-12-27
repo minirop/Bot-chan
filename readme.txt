@@ -1,4 +1,4 @@
-BotChan 0.1.6
+BotChan 0.2.0
 Copyright (C) 2008
 Alexander Roper (minirop !at! hotmail !dot! com)
 
