@@ -24,7 +24,7 @@ XDCC::XDCC( QIrc * bot, QString dest, QString filename )
 	socket = 0;
 	if( !server->listen(QHostAddress::Any, 5990) )
 	{
-		parent_irc->print( tr( "can't lister on port 5990" ) );
+		parent_irc->warning( tr( "can't lister on port 5990" ) );
 		deleteLater();
 		return;
 	}
@@ -32,7 +32,7 @@ XDCC::XDCC( QIrc * bot, QString dest, QString filename )
 	connect( server, SIGNAL( newConnection() ), this, SLOT( onConnexion() ) );
 	connect( server, SIGNAL( destroyed( QObject * ) ), this, SLOT( onDeletion( QObject * ) ) );
 	fichier = QFileInfo( filename );
-	parent_irc->send( dest, QString( "DCC SEND \"%1\" %2 %3 %4" ).arg( fichier.fileName() ).arg( "123123123" ).arg( 5990 ).arg( fichier.size() ) );
+	parent_irc->send( dest, QString( "DCC SEND \"%1\" %2 %3 %4" ).arg( fichier.fileName() ).arg( parent_irc->ip() ).arg( 5990 ).arg( fichier.size() ) );
 	QTimer::singleShot( 10000, this, SLOT( onTimerTimeout() ) );
 }
 
@@ -47,7 +47,7 @@ void XDCC::onTimerTimeout()
 
 void XDCC::onDeletion( QObject * obj )
 {
-	parent_irc->print( tr( "the server listening on port %1 has been deleted" ).arg( 5990 ) );
+	parent_irc->debug( tr( "the server listening on port %1 has been deleted" ).arg( 5990 ) );
 }
 
 void XDCC::onConnexion()
@@ -63,7 +63,7 @@ void XDCC::connecte()
 	QFile f( fichier.canonicalFilePath() );
 	f.open( QIODevice::ReadOnly );
 	socket->write( f.readAll() );
-	parent_irc->print( tr( "transfert beginning" ) );
+	parent_irc->debug( tr( "transfert beginning" ) );
 }
 
 void XDCC::deconnecte()

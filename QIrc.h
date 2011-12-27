@@ -57,6 +57,8 @@ public slots:
 	void deconnection( QString message = QString() );
 	// send the file "filename" to "dest"
 	void sendFile( QString dest, QString filename );
+	// get the ip
+	unsigned int ip();
 
 private slots:
 	void scriptError( const QScriptValue & exception );

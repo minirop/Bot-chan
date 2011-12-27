@@ -581,6 +581,11 @@ void QIrc::lookedUp(const QHostInfo &host)
 	}
 }
 
+unsigned int QIrc::ip()
+{
+	return ip_addr;
+}
+
 void QIrc::send( QString dest, QString message )
 {
 	sendRaw( "PRIVMSG " + dest + " :" + message );
@@ -615,7 +620,7 @@ void QIrc::dispatchMessage( QStringList sender_data, QString destination, QStrin
 		{
 			if( m[0] == "SEND" )
 			{
-				Dcc * file_dcc = new Dcc( int_to_ip(m[2].toUInt() ), m[3].toUShort(), getValue( "dcc/directory" )+"/"+m[1], m[4].remove( '' ).toUInt() );
+				Dcc * file_dcc = new Dcc( int_to_ip( m[2].toUInt() ), m[3].toUShort(), getValue( "dcc/directory" )+"/"+m[1], m[4].remove( '' ).toUInt() );
 				connect( file_dcc, SIGNAL( onError( QAbstractSocket::SocketError ) ), this, SLOT( dcc_displayError( QAbstractSocket::SocketError ) ) );
 				connect( file_dcc, SIGNAL( onFinished( int, float ) ), this, SLOT( dcc_transfertFinished( int, float ) ) );
 				debug( tr( "beginning the DL of %1" ).arg(m[1]) );
